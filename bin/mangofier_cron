@@ -5,11 +5,10 @@ require_relative '../config/environment'
 require_relative '../lib/manga_model'
 require_relative '../lib/manga_updates'
 require_relative '../lib/manga_dex'
-require 'faraday' # Vamos usar para mandar a mensagem direto pro Telegram
+require 'faraday'
 
-puts "Iniciando o Mangofier (Bilingue Edition)..."
+puts "🔥 Iniciando o Mangofier (Otimizado Edition) no Abobrinator..."
 
-# O megafone do Pessegram
 def gritar_no_telegram(mensagem)
   token = ENV['TELEGRAM_BOT_TOKEN']
   chat_id = ENV['TELEGRAM_CHAT_ID']
@@ -25,30 +24,36 @@ begin
   mu = MangaUpdates.new
   md = MangaDex.new
 
-  lista = mu.fetch_reading_list
+  # 1. Pega apenas os IDs da gaveta 0
+  lista_de_ids = mu.fetch_reading_list
   
-  lista.each do |item|
-    titulo = item[:series][:title]
-    mu_id = item[:series][:id]
+  # 2. Pede os lançamentos recentes de TODOS eles de uma vez só!
+  lancamentos = mu.check_batch_releases(lista_de_ids)
 
-    # Garante que a obra existe no nosso banco
+  if lancamentos.empty?
+    puts "💤 Nenhum lançamento novo. O i3 pode voltar a dormir."
+    exit
+  end
+
+  # 3. Itera sobre a fofoca fresquinha
+  lancamentos.each do |fofoca|
+    mu_id = fofoca.dig(:series, :id)
+    titulo = fofoca.dig(:series, :title) || "Mangá Desconhecido"
+    ultimo_capitulo = fofoca[:chapter]
+
+    next unless mu_id && ultimo_capitulo # Ignora se a API mandar lixo sem capítulo
+
+    # Garante que a obra existe no nosso banco SQLite
     MangaModel.insert_manga(titulo, mu_id)
     db_manga = MangaModel.find_by_mu_id(mu_id)
 
-    # Olha se tem capítulo novo
-    lancamentos = mu.check_recent_releases(mu_id)
-    next if lancamentos.empty?
-
-    ultimo_capitulo = lancamentos.first[:chapter]
-    
-    # Se já avisamos desse capítulo, pula. Preguiça de ler repetição.
+    # A Preguiça: Se já avisamos desse capítulo, pula.
     next if db_manga['ultimo_capitulo_notificado'] == ultimo_capitulo.to_s
 
-    # Monta a fofoca
+    # Monta a mensagem pro Pessegram
     mensagem = "🔥 Mestre, saiu o cap #{ultimo_capitulo} de #{titulo}!\n\n"
     
     if db_manga['md_id']
-      # O pulo do gato: buscando PT-BR e EN!
       cap_dex = md.get_latest_chapter_link(db_manga['md_id'], ['pt-br', 'en'])
       mensagem += cap_dex ? "📖 Leia (Dex): #{cap_dex[:url]}" : "MangaDex furou."
     elsif db_manga['mp_url']
@@ -59,12 +64,17 @@ begin
       mensagem += "⚠️ Não sei onde o senhor lê isso. Responda com o link!\n[MU_ID: #{mu_id}]"
     end
 
+    # Grita, salva no banco e respira
     gritar_no_telegram(mensagem)
     MangaModel.update_last_chapter(mu_id, ultimo_capitulo)
-    sleep(2) # Pausa pro Telegram não nos banir por spam
+    puts "✅ Notificado: #{titulo} (Cap #{ultimo_capitulo})"
+    sleep(2) # Pausa dramática pro Telegram não nos banir
   end
-  puts "Fim da varredura. O i3 pode voltar a respirar."
+  
+  puts "🏁 Fim da varredura. A paz reina no Proxmox."
 
 rescue => e
-  gritar_no_telegram("🚨 Mestre, o Mangofier capotou no Proxmox:\n#{e.message}")
+  erro_msg = "🚨 Mestre, o Mangofier capotou no Proxmox:\n#{e.class}: #{e.message}"
+  puts erro_msg
+  gritar_no_telegram(erro_msg)
 end

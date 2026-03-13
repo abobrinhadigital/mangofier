@@ -1,0 +1,15 @@
+mangofier/
+├── bin/
+│   └── mangofier_cron       # O executável que roda no cronjob/systemd para checar os mangás.
+├── config/
+│   └── environment.rb       # O coração que carrega o .env, o SQLite e as bibliotecas da lib/.
+├── db/
+│   ├── migrations/          # Onde vamos versionar a criação da tabela mangas_mapeados.
+│   └── mangofier.sqlite3    # O banco de dados (que precisa de permissão de leitura/escrita para ambos).
+├── lib/
+│   ├── manga_model.rb       # A classe que fala com o SQLite (com os Prepared Statements salvadores).
+│   ├── manga_updates.rb     # O cliente que consome a API oficial do MangaUpdates.
+│   └── manga_dex.rb         # O cliente opcional para buscar o link exato (nossa "Opção B").
+├── app.rb                   # O micro-servidor Sinatra com a rota POST /update_link.
+├── Gemfile                  # Onde vamos declarar o sinatra, sqlite3, faraday, etc.
+└── .env                     # O cofre sagrado (Token do Telegram, senhas, etc). Nunca suba isso pro GitHub.

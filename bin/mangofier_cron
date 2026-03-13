@@ -1,0 +1,70 @@
+#!/usr/bin/env ruby
+# bin/mangofier_cron
+
+require_relative '../config/environment'
+require_relative '../lib/manga_model'
+require_relative '../lib/manga_updates'
+require_relative '../lib/manga_dex'
+require 'faraday' # Vamos usar para mandar a mensagem direto pro Telegram
+
+puts "Iniciando o Mangofier (Bilingue Edition)..."
+
+# O megafone do Pessegram
+def gritar_no_telegram(mensagem)
+  token = ENV['TELEGRAM_BOT_TOKEN']
+  chat_id = ENV['TELEGRAM_CHAT_ID']
+  return puts "Erro: Cade o token do Telegram no .env?" unless token && chat_id
+
+  Faraday.post("https://api.telegram.org/bot#{token}/sendMessage") do |req|
+    req.body = { chat_id: chat_id, text: mensagem }.to_json
+    req.headers['Content-Type'] = 'application/json'
+  end
+end
+
+begin
+  mu = MangaUpdates.new
+  md = MangaDex.new
+
+  lista = mu.fetch_reading_list
+  
+  lista.each do |item|
+    titulo = item[:series][:title]
+    mu_id = item[:series][:id]
+
+    # Garante que a obra existe no nosso banco
+    MangaModel.insert_manga(titulo, mu_id)
+    db_manga = MangaModel.find_by_mu_id(mu_id)
+
+    # Olha se tem capítulo novo
+    lancamentos = mu.check_recent_releases(mu_id)
+    next if lancamentos.empty?
+
+    ultimo_capitulo = lancamentos.first[:chapter]
+    
+    # Se já avisamos desse capítulo, pula. Preguiça de ler repetição.
+    next if db_manga['ultimo_capitulo_notificado'] == ultimo_capitulo.to_s
+
+    # Monta a fofoca
+    mensagem = "🔥 Mestre, saiu o cap #{ultimo_capitulo} de #{titulo}!\n\n"
+    
+    if db_manga['md_id']
+      # O pulo do gato: buscando PT-BR e EN!
+      cap_dex = md.get_latest_chapter_link(db_manga['md_id'], ['pt-br', 'en'])
+      mensagem += cap_dex ? "📖 Leia (Dex): #{cap_dex[:url]}" : "MangaDex furou."
+    elsif db_manga['mp_url']
+      mensagem += "📖 Leia (Plus): #{db_manga['mp_url']}"
+    elsif db_manga['custom_url']
+      mensagem += "📖 Leia (Lixeira): #{db_manga['custom_url']}"
+    else
+      mensagem += "⚠️ Não sei onde o senhor lê isso. Responda com o link!\n[MU_ID: #{mu_id}]"
+    end
+
+    gritar_no_telegram(mensagem)
+    MangaModel.update_last_chapter(mu_id, ultimo_capitulo)
+    sleep(2) # Pausa pro Telegram não nos banir por spam
+  end
+  puts "Fim da varredura. O i3 pode voltar a respirar."
+
+rescue => e
+  gritar_no_telegram("🚨 Mestre, o Mangofier capotou no Proxmox:\n#{e.message}")
+end

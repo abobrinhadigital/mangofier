@@ -35,8 +35,11 @@ begin
     exit
   end
 
-  # 3. Itera sobre a fofoca fresquinha
-  lancamentos.each do |fofoca|
+# 3. Itera sobre a fofoca fresquinha
+  lancamentos.each do |item|
+    # Descascando a cebola do MangaUpdates (eles escondem tudo no :record)
+    fofoca = item[:record] || item
+
     mu_id = fofoca.dig(:series, :id)
     titulo = fofoca.dig(:series, :title) || "Mangá Desconhecido"
     ultimo_capitulo = fofoca[:chapter]

@@ -10,7 +10,6 @@ class MangaUpdates
     @password = ENV['MU_PASSWORD']
     @token = nil
 
-    # O Faraday mastiga os JSONs para não fritarmos o i3
     @conn = Faraday.new(url: BASE_URL) do |f|
       f.request :json
       f.response :json, parser_options: { symbolize_names: true }
@@ -18,7 +17,6 @@ class MangaUpdates
     end
   end
 
-  # A heresia do PUT para fazer login
   def login
     puts "🚪 Batendo na porta do MangaUpdates como #{@username}..."
     response = @conn.put('account/login') do |req|
@@ -33,7 +31,7 @@ class MangaUpdates
     end
   end
 
-  # O Chute 2 (Vitorioso): Busca a lista 0 filtrando via POST
+  # O Chute 2 (Vitorioso): Busca a lista 0 filtrando via POST e cria o Dicionário
   def fetch_reading_list
     login if @token.nil?
 
@@ -45,12 +43,17 @@ class MangaUpdates
 
     if response.status == 200 && response.body[:results]
       obras = response.body[:results]
-      puts "✅ Achamos #{obras.length} mangás na sua lista."
       
-      # Na busca do MU, os dados da série ficam dentro do nó :record.
-      # Vamos extrair apenas os IDs num Array limpo para poupar a memória do Abobrinator.
-      ids = obras.map { |item| item.dig(:record, :series_id) }.compact
-      return ids
+      # A MÁGICA: Criando o Dicionário { "Nome" => ID }
+      mapa = {}
+      obras.each do |item|
+        id = item.dig(:record, :series_id) || item.dig(:record, :id)
+        titulo = item.dig(:record, :title)
+        mapa[titulo] = id if titulo && id
+      end
+      
+      puts "✅ Achamos #{mapa.length} mangás na sua lista."
+      return mapa
     else
       raise "🚨 O MangaUpdates trancou a gaveta! Status: #{response.status}"
     end

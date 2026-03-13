@@ -7,7 +7,7 @@ require_relative '../lib/manga_updates'
 require_relative '../lib/manga_dex'
 require 'faraday'
 
-puts "🔥 Iniciando o Mangofier (Otimizado Edition) no Abobrinator..."
+puts "🔥 Iniciando o Mangofier (A Rasteira Edition)..."
 
 def gritar_no_telegram(mensagem)
   token = ENV['TELEGRAM_BOT_TOKEN']
@@ -24,10 +24,11 @@ begin
   mu = MangaUpdates.new
   md = MangaDex.new
 
-  # 1. Pega apenas os IDs da gaveta 0
-  lista_de_ids = mu.fetch_reading_list
+  # 1. Pega o Dicionário { "Nome do Mangá" => ID }
+  mapa_de_obras = mu.fetch_reading_list
+  lista_de_ids = mapa_de_obras.values
   
-  # 2. Pede os lançamentos recentes de TODOS eles de uma vez só!
+  # 2. Pede os lançamentos (usando só os IDs)
   lancamentos = mu.check_batch_releases(lista_de_ids)
 
   if lancamentos.empty?
@@ -35,25 +36,23 @@ begin
     exit
   end
 
-# 3. Itera sobre a fofoca fresquinha
+  # 3. Itera sobre a fofoca
   lancamentos.each do |item|
-    # Descascando a cebola do MangaUpdates (eles escondem tudo no :record)
     fofoca = item[:record] || item
 
-    mu_id = fofoca.dig(:series, :id)
-    titulo = fofoca.dig(:series, :title) || "Mangá Desconhecido"
+    titulo = fofoca[:title]
     ultimo_capitulo = fofoca[:chapter]
+    
+    # A GRANDE RASTEIRA: Descobre o ID olhando no nosso dicionário!
+    mu_id = mapa_de_obras[titulo]
 
-    next unless mu_id && ultimo_capitulo # Ignora se a API mandar lixo sem capítulo
+    next unless mu_id && ultimo_capitulo
 
-    # Garante que a obra existe no nosso banco SQLite
     MangaModel.insert_manga(titulo, mu_id)
     db_manga = MangaModel.find_by_mu_id(mu_id)
 
-    # A Preguiça: Se já avisamos desse capítulo, pula.
     next if db_manga['ultimo_capitulo_notificado'] == ultimo_capitulo.to_s
 
-    # Monta a mensagem pro Pessegram
     mensagem = "🔥 Mestre, saiu o cap #{ultimo_capitulo} de #{titulo}!\n\n"
     
     if db_manga['md_id']
@@ -67,11 +66,10 @@ begin
       mensagem += "⚠️ Não sei onde o senhor lê isso. Responda com o link!\n[MU_ID: #{mu_id}]"
     end
 
-    # Grita, salva no banco e respira
     gritar_no_telegram(mensagem)
     MangaModel.update_last_chapter(mu_id, ultimo_capitulo)
     puts "✅ Notificado: #{titulo} (Cap #{ultimo_capitulo})"
-    sleep(2) # Pausa dramática pro Telegram não nos banir
+    sleep(2)
   end
   
   puts "🏁 Fim da varredura. A paz reina no Proxmox."

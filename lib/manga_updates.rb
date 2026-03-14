@@ -38,9 +38,10 @@ class MangaUpdates
     puts "📂 Puxando as obras da gaveta 0 (Reading List)..."
     response = @conn.post('series/search') do |req|
       req.headers['Authorization'] = "Bearer #{@token}"
-      req.body = { list_id: 0 }
+      # A MÁGICA DA PAGINAÇÃO: Pedindo 500 de uma vez para não lidar com "Página 2"
+      req.body = { list_id: 0, perpage: 500 } 
     end
-
+    
     if response.status == 200 && response.body[:results]
       obras = response.body[:results]
       

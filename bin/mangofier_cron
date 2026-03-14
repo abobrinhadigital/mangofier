@@ -3,79 +3,64 @@
 
 require_relative '../config/environment'
 require_relative '../lib/manga_model'
+require_relative '../lib/system_model'
 require_relative '../lib/manga_updates'
 require_relative '../lib/manga_dex'
-require 'faraday'
+require_relative '../lib/pessegram'
 
-puts "🔥 Iniciando o Mangofier (A Rasteira Edition)..."
-
-def gritar_no_telegram(mensagem)
-  token = ENV['TELEGRAM_BOT_TOKEN']
-  chat_id = ENV['TELEGRAM_CHAT_ID']
-  return puts "Erro: Cade o token do Telegram no .env?" unless token && chat_id
-
-  Faraday.post("https://api.telegram.org/bot#{token}/sendMessage") do |req|
-    req.body = { chat_id: chat_id, text: mensagem }.to_json
-    req.headers['Content-Type'] = 'application/json'
-  end
-end
+puts "🔥 A iniciar o Mangofier (Time Lord Edition)..."
 
 begin
   mu = MangaUpdates.new
   md = MangaDex.new
+  pessegram = Pessegram.new
 
-  # 1. Pega o Dicionário completo sugando todas as páginas
-  mapa_de_obras = mu.fetch_reading_list
-  lista_de_ids = mapa_de_obras.values
+  last_check = SystemModel.get_last_check
   
-  # 2. Pede os lançamentos globais
-  lancamentos = mu.check_batch_releases(lista_de_ids)
+  lancamentos, novo_last_check = mu.check_new_releases(last_check)
 
   if lancamentos.empty?
-    puts "💤 Nenhum lançamento novo. O i3 pode voltar a dormir."
+    puts "💤 Nenhum lançamento novo desde a última checagem."
     exit
   end
 
-  # 3. Itera sobre a fofoca cruzando com o dicionário
-  lancamentos.each do |item|
-    fofoca = item[:record] || item
-
-    titulo = fofoca[:title]
-    ultimo_capitulo = fofoca[:chapter]
+  lancamentos.each do |fofoca|
+    mu_id = fofoca[:mu_id]
+    titulo = fofoca[:titulo]
+    ultimo_capitulo = fofoca[:capitulo]
     
-    # Busca o ID no dicionário que acabamos de montar
-    mu_id = mapa_de_obras[titulo]
-
-    next unless mu_id && ultimo_capitulo
-
-    MangaModel.insert_manga(titulo, mu_id)
     db_manga = MangaModel.find_by_mu_id(mu_id)
-
+    
+    next unless db_manga
     next if db_manga['ultimo_capitulo_notificado'] == ultimo_capitulo.to_s
 
     mensagem = "🔥 Mestre, saiu o cap #{ultimo_capitulo} de #{titulo}!\n\n"
     
     if db_manga['md_id']
       cap_dex = md.get_latest_chapter_link(db_manga['md_id'], ['pt-br', 'en'])
-      mensagem += cap_dex ? "📖 Leia (Dex): #{cap_dex[:url]}" : "MangaDex furou."
+      mensagem += cap_dex ? "📖 Leia (Dex): #{cap_dex[:url]}" : "MangaDex falhou."
     elsif db_manga['mp_url']
       mensagem += "📖 Leia (Plus): #{db_manga['mp_url']}"
     elsif db_manga['custom_url']
       mensagem += "📖 Leia (Lixeira): #{db_manga['custom_url']}"
     else
-      mensagem += "⚠️ Não sei onde o senhor lê isso. Responda com o link!\n[MU_ID: #{mu_id}]"
+      # A magia Base36 do MangaUpdates!
+      url_mu = "https://www.mangaupdates.com/series/#{mu_id.to_i.to_s(36)}"
+      mensagem += "⚠️ Não sei onde o senhor lê isto. Verifique o Scanlator:\n🔗 MU: #{url_mu}"
     end
 
-    gritar_no_telegram(mensagem)
+    pessegram.gritar(mensagem)
+    
     MangaModel.update_last_chapter(mu_id, ultimo_capitulo)
-    puts "✅ Notificado: #{titulo} (Cap #{ultimo_capitulo})"
+    puts "✅ Processado: #{titulo} (Cap #{ultimo_capitulo})"
     sleep(2)
   end
   
-  puts "🏁 Fim da varredura. A paz reina no Proxmox."
+  SystemModel.set_last_check(novo_last_check)
+  puts "🏁 Fim da varredura. Novo Last Check salvo: #{novo_last_check}"
 
 rescue => e
-  erro_msg = "🚨 Mestre, o Mangofier capotou no Proxmox:\n#{e.class}: #{e.message}"
+  erro_msg = "🚨 Mestre, o Mangofier capotou:\n#{e.class}: #{e.message}"
   puts erro_msg
-  gritar_no_telegram(erro_msg)
+  Pessegram.new.gritar(erro_msg) 
 end

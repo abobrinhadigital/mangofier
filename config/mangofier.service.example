@@ -1,0 +1,16 @@
+[Unit]
+Description=Mangofier API Listener (Abobrinha Digital)
+After=network.target
+
+[Service]
+Type=simple
+User=celo
+WorkingDirectory=/home/celo/projects/mangofier
+ExecStart=/usr/bin/ruby bin/mangofier_service
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/celo/projects/mangofier/data/service.log
+StandardError=append:/home/celo/projects/mangofier/data/service.log
+
+[Install]
+WantedBy=multi-user.target

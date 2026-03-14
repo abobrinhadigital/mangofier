@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+require_relative '../config/environment'
+require_relative '../lib/manga_model'
+
+puts "📊 --- STATUS DA BIBLIOTECA DO MESTRE ---"
+puts "%-30s | %-12s | %-12s | %-s" % ["Título", "MangaDex ID", "MangaPlus", "Custom URL"]
+puts "-" * 100
+
+MangaModel.db.execute("SELECT * FROM mangas_mapeados").each do |manga|
+  md = manga['md_id'] ? "✅" : "❌"
+  mp = manga['mp_url'] ? "✅" : "❌"
+  
+  puts "%-30s | %-12s | %-12s | %-s" % [
+    manga['titulo'].to_s[0..28], 
+    md, 
+    mp, 
+    manga['custom_url'] || "---"
+  ]
+end
+puts "-" * 100

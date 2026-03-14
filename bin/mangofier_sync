@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+# bin/mangofier_sync
+
+require_relative '../config/environment'
+require_relative '../lib/manga_model'
+require_relative '../lib/manga_updates'
+
+puts "🔄 Iniciando Sincronização Diária da Reading List..."
+
+begin
+  mu = MangaUpdates.new
+  
+  # 1. Busca a lista completa da API
+  mapa_da_api = mu.fetch_reading_list
+  ids_na_api = mapa_da_api.values
+
+  # 2. Pega o que temos no banco atualmente
+  ids_no_banco = MangaModel.get_all_mu_ids
+
+  # 3. Inserir os novos (O 'INSERT OR IGNORE' ignora os que já existem)
+  mapa_da_api.each do |titulo, id|
+    MangaModel.insert_manga(titulo, id)
+  end
+
+  # 4. A mágica da limpeza: O que tem no banco MAS NÃO TEM na API?
+  ids_para_remover = ids_no_banco - ids_na_api
+  
+  ids_para_remover.each do |id_removido|
+    MangaModel.delete_by_mu_id(id_removido)
+    puts "🗑️ Mangá removido do banco (MU_ID: #{id_removido})"
+  end
+
+  puts "✅ Sync Completo!"
+  puts "📊 Total na API: #{ids_na_api.length}"
+  puts "📊 Total no Banco: #{MangaModel.get_all_mu_ids.length}"
+  puts "🧹 Removidos nesta rodada: #{ids_para_remover.length}"
+
+rescue => e
+  puts "🚨 Falha na sincronização: #{e.class} - #{e.message}"
+end

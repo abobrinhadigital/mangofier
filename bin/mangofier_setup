@@ -1,0 +1,59 @@
+#!/bin/bash
+# bin/mangofier_setup
+# O instalador oficial do caos bilingue (Mangofier)
+
+echo "🥭 Iniciando Configuração do Mangofier (Portable Edition)..."
+set -e # Para em caso de qualquer erro
+
+# 1. Verifica se temos o Ruby instalado
+if ! command -v ruby &> /dev/null; then
+    echo "🚨 Erro: Ruby não encontrado! O Mangofier precisa de Ruby 3.4+ para viver."
+    exit 1
+fi
+
+# 2. Garante que os diretórios necessários existem
+echo "📁 Criando diretórios de dados..."
+mkdir -p db data config
+
+# 3. Gerencia o arquivo de ambiente
+if [ ! -f .env ]; then
+    echo "📝 Criando arquivo .env inicial a partir do example..."
+    cp .env.example .env
+    echo "⚠️  ATENÇÃO: Edite o arquivo .env com suas chaves antes de rodar o service!"
+else
+    echo "✅ Arquivo .env já existe. Pulando."
+fi
+
+# 4. Instala as dependências
+echo "📦 Instalando gems (Bundler)..."
+bundle install
+
+# 5. Prepara o banco de dados e faz o sync inicial
+echo "🔄 Sincronizando com MangaUpdates (Pode levar alguns segundos)..."
+ruby bin/mangofier_sync
+
+# 6. Geração do serviço Systemd
+CURRENT_DIR=$(pwd)
+USER_NAME=$(whoami)
+RUBY_PATH=$(command -v ruby)
+
+echo "⚙️  Gerando arquivo de serviço systemd..."
+sed -e "s|/home/celo/projects/mangofier|$CURRENT_DIR|g" \
+    -e "s|User=celo|User=$USER_NAME|g" \
+    -e "s|/usr/bin/ruby|$RUBY_PATH|g" \
+    config/mangofier.service.example > data/mangofier.service
+
+echo ""
+echo "✨ SETUP CONCLUÍDO COM SUCESSO! ✨"
+echo "----------------------------------------------------"
+echo "🚀 PASSO 1: Ativar o Serviço do Listener (O 'Ouvidor'):"
+echo "sudo cp $CURRENT_DIR/data/mangofier.service /etc/systemd/system/"
+echo "sudo systemctl daemon-reload"
+echo "sudo systemctl enable --now mangofier"
+echo ""
+echo "📅 PASSO 2: Agendar as noites de sono do mestre (Cron):"
+echo "Adicione estas linhas no seu 'crontab -e':"
+echo "*/30 * * * * cd $CURRENT_DIR && $RUBY_PATH bin/mangofier_cron >> $CURRENT_DIR/data/cron.log 2>&1"
+echo "0 4 * * * cd $CURRENT_DIR && $RUBY_PATH bin/mangofier_sync >> $CURRENT_DIR/data/sync.log 2>&1"
+echo "----------------------------------------------------"
+echo "Pollux aprovou esta instalação. Murphy foi ignorado."

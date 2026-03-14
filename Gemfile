@@ -2,8 +2,7 @@
 source 'https://rubygems.org'
 
 # O servidor web minimalista para ouvir o Pessegram
-gem 'sinatra'
-gem 'puma' # Porque usar o WEBrick nativo em 2026 é um crime contra a performance
+gem 'webrick'
 
 # O nosso banco de dados blindado contra as suas digitações
 gem 'sqlite3', '~> 1.6'

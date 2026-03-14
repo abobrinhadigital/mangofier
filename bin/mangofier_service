@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+require 'bundler/setup'
+require 'dotenv/load'
+require_relative '../lib/api_listener'
+
+# Inicia o ouvinte em background
+Thread.abort_on_exception = true
+Mangofier::ApiListener.start
+
+puts "🚀 Mangofier Service ativo. O ouvinte está rodando."
+puts "Pressione Ctrl+C para encerrar."
+
+# Mantém o processo principal vivo para a Thread não morrer
+loop do
+  sleep 1000
+end

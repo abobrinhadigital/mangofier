@@ -31,36 +31,48 @@ class MangaUpdates
     end
   end
 
-  # O Chute 2 (Vitorioso): Busca a lista 0 filtrando via POST e cria o Dicionário
+  # O Sugador de Páginas Honesto e Direto
   def fetch_reading_list
     login if @token.nil?
-
     puts "📂 Puxando as obras da gaveta 0 (Reading List)..."
-    response = @conn.post('series/search') do |req|
-      req.headers['Authorization'] = "Bearer #{@token}"
-      # A MÁGICA DA PAGINAÇÃO: Pedindo 500 de uma vez para não lidar com "Página 2"
-      req.body = { list_id: 0, perpage: 500 } 
-    end
-    
-    if response.status == 200 && response.body[:results]
-      obras = response.body[:results]
-      
-      # A MÁGICA: Criando o Dicionário { "Nome" => ID }
-      mapa = {}
-      obras.each do |item|
-        id = item.dig(:record, :series_id) || item.dig(:record, :id)
-        titulo = item.dig(:record, :title)
-        mapa[titulo] = id if titulo && id
+
+    mapa = {}
+    pagina = 1
+
+    loop do
+      response = @conn.post('series/search') do |req|
+        req.headers['Authorization'] = "Bearer #{@token}"
+        req.body = { list_id: 0, page: pagina }
       end
-      
-      puts "✅ Achamos #{mapa.length} mangás na sua lista."
-      return mapa
-    else
-      raise "🚨 O MangaUpdates trancou a gaveta! Status: #{response.status}"
+
+      if response.status == 200 && response.body[:results]
+        obras = response.body[:results]
+        
+        # Se a página vier vazia, chegamos ao fim da lista.
+        break if obras.empty?
+
+        obras.each do |item|
+          id = item.dig(:record, :series_id) || item.dig(:record, :id)
+          titulo = item.dig(:record, :title)
+          mapa[titulo] = id if titulo && id
+        end
+
+        puts "   -> Página #{pagina} varrida (+#{obras.length} mangás)"
+        
+        # O limite padrão da API é 25 itens por página. 
+        # Se vieram menos de 25, não há próxima página para buscar.
+        break if obras.length < 25 
+        
+        pagina += 1
+      else
+        raise "🚨 O MangaUpdates trancou a gaveta! Status: #{response.status}"
+      end
     end
+
+    puts "✅ Achamos #{mapa.length} mangás na sua lista no total."
+    return mapa
   end
 
-  # A Economia Máxima: Manda o pacotão de IDs de uma vez só
   def check_batch_releases(lista_de_ids)
     return [] if lista_de_ids.empty?
 

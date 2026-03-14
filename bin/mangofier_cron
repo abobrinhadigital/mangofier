@@ -24,11 +24,11 @@ begin
   mu = MangaUpdates.new
   md = MangaDex.new
 
-  # 1. Pega o Dicionário { "Nome do Mangá" => ID }
+  # 1. Pega o Dicionário completo sugando todas as páginas
   mapa_de_obras = mu.fetch_reading_list
   lista_de_ids = mapa_de_obras.values
   
-  # 2. Pede os lançamentos (usando só os IDs)
+  # 2. Pede os lançamentos globais
   lancamentos = mu.check_batch_releases(lista_de_ids)
 
   if lancamentos.empty?
@@ -36,21 +36,16 @@ begin
     exit
   end
 
-  # 3. Itera sobre a fofoca
+  # 3. Itera sobre a fofoca cruzando com o dicionário
   lancamentos.each do |item|
     fofoca = item[:record] || item
 
     titulo = fofoca[:title]
     ultimo_capitulo = fofoca[:chapter]
     
-    # A GRANDE RASTEIRA: Descobre o ID olhando no nosso dicionário!
-      mapa_de_obras = mu.fetch_reading_list
-    
-    # A INJEÇÃO DE FOFOCA FALSA PARA TESTAR O TELEGRAM
-    mapa_de_obras["Shadow Season"] = 999999 
+    # Busca o ID no dicionário que acabamos de montar
+    mu_id = mapa_de_obras[titulo]
 
-    lista_de_ids = mapa_de_obras.values
-    
     next unless mu_id && ultimo_capitulo
 
     MangaModel.insert_manga(titulo, mu_id)

@@ -44,8 +44,13 @@ begin
     ultimo_capitulo = fofoca[:chapter]
     
     # A GRANDE RASTEIRA: Descobre o ID olhando no nosso dicionário!
-    mu_id = mapa_de_obras[titulo]
+      mapa_de_obras = mu.fetch_reading_list
+    
+    # A INJEÇÃO DE FOFOCA FALSA PARA TESTAR O TELEGRAM
+    mapa_de_obras["Shadow Season"] = 999999 
 
+    lista_de_ids = mapa_de_obras.values
+    
     next unless mu_id && ultimo_capitulo
 
     MangaModel.insert_manga(titulo, mu_id)

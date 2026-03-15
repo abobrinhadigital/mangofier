@@ -211,6 +211,12 @@ class MangaUpdates
   def add_to_list(mu_id, list_id)
     login if @token.nil?
     
+    # Se a obra já estiver em qualquer lista, o POST falha.
+    # Como não sabemos em qual lista ela está sem buscar tudo, 
+    # a estratégia mais segura (e recomendada pelo teste 8) é tentar remover 
+    # de qualquer lista potencial ou simplesmente remover da Reading (0) antes.
+    remove_from_list(mu_id, 0) 
+    
     response = @conn.post("lists/series") do |req|
       req.headers['Authorization'] = "Bearer #{@token}"
       req.body = [{ series: { id: mu_id }, list_id: list_id }]
@@ -220,12 +226,13 @@ class MangaUpdates
   end
 
   # Remove uma série de uma lista específica (ex: 0 para Reading)
+  # O MangaUpdates v1 usa POST para delete em listas! (Descoberta do Teste 8 🕵️)
   def remove_from_list(mu_id, list_id)
     login if @token.nil?
     
-    response = @conn.delete("lists/#{list_id}/series/delete") do |req|
+    response = @conn.post("lists/series/delete") do |req|
       req.headers['Authorization'] = "Bearer #{@token}"
-      req.body = [{ id: mu_id }]
+      req.body = [mu_id] # Array simples de IDs
     end
 
     response.status == 200

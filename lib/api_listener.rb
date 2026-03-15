@@ -1,7 +1,4 @@
 # lib/api_listener.rb
-require 'webrick'
-require 'json'
-require_relative 'pessegram'
 
 module Mangofier
   class ApiListener

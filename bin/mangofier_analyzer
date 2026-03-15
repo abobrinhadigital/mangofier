@@ -5,9 +5,8 @@
 # O mestre detectou que o last_updated dos metadados mente!
 
 require_relative '../config/environment'
-require_relative '../lib/manga_updates'
-require 'time'
 
+puts "🔥 A iniciar o Mangofier (Time Lord Edition)..."
 # Helper para transformar tempo em algo que humanos (e Pollux) entendam
 def tempo_legivel(segundos)
   return "0 dias" if segundos <= 0

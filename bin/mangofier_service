@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 require_relative '../config/environment'
-require_relative '../lib/api_listener'
 
 # Inicia o ouvinte em background
 Thread.abort_on_exception = true

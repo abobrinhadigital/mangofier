@@ -3,7 +3,6 @@
 
 require_relative '../config/environment'
 require_relative '../lib/manga_updates'
-require_relative '../lib/pessegram'
 
 puts "🔥 A iniciar o Mangofier (Time Lord Edition)..."
 

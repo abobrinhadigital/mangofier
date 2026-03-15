@@ -3,7 +3,6 @@
 # Cockpit de Saúde do Mangofier - Pollux (v2.0)
 
 require_relative '../config/environment'
-require 'time'
 
 # --- Helpers ---
 def status_label(check)

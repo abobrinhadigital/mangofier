@@ -4,6 +4,9 @@ Bundler.require(:default)
 require 'dotenv/load'
 require 'sqlite3'
 require 'fileutils'
+require 'webrick'
+require 'json'
+require 'time'
 
 # Caminhos Absolutos para não ter erro no Proxmox/Servidor
 APP_ROOT = File.expand_path('..', __dir__)
@@ -23,3 +26,6 @@ DB.busy_timeout = 5000
 # Carregamento automático das engrenagens do mestre
 require_relative '../lib/manga_model'
 require_relative '../lib/system_model'
+require_relative '../lib/pessegram'
+require_relative '../lib/manga_updates'
+require_relative '../lib/api_listener'

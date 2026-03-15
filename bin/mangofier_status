@@ -1,45 +1,74 @@
 #!/usr/bin/env ruby
+# bin/mangofier_status
+# Cockpit de Saúde do Mangofier - Pollux (v2.0)
+
 require_relative '../config/environment'
+require 'time'
 
-# Helper para transformar tempo em algo que humanos (e Pollux) entendam
-def tempo_legivel(segundos)
-  return "N/A" if segundos.nil? || segundos <= 0
-  
+# --- Helpers ---
+def status_label(check)
+  check ? "✅ OK" : "🚨 FALHA"
+end
+
+def tempo_legivel(timestamp)
+  return "Nunca" if timestamp.nil? || timestamp <= 0
   agora = Time.now.to_i
-  diff = agora - segundos
-  return "Recente" if diff < 0
+  diff = agora - timestamp
   
-  anos = diff / (365 * 24 * 3600)
-  diff %= (365 * 24 * 3600)
-  meses = diff / (30 * 24 * 3600)
-  diff %= (30 * 24 * 3600)
-  dias = diff / (24 * 3600)
+  return "Recente" if diff < 60
   
-  partes = []
-  partes << "#{anos}a" if anos > 0
-  partes << "#{meses}m" if meses > 0
-  partes << "#{dias}d" if dias > 0 || partes.empty?
+  minutos = diff / 60
+  horas = minutos / 60
+  dias = horas / 24
   
-  partes.join(" ")
+  return "#{dias}d" if dias > 0
+  return "#{horas}h" if horas > 0
+  "#{minutos}m"
 end
 
-puts "📊 --- STATUS DA BIBLIOTECA DO MESTRE ---"
-puts "%-25s | %-12s | %-10s | %-s" % ["Título", "Últ. Lançam.", "Inativo", "Caminho / Link"]
-puts "-" * 120
+# --- 1. Checagem de Infraestrutura (Systemd) ---
+# Sem sudo, pois o mestre reina como root
+service_status = `systemctl is-active mangofier.service`.strip rescue "unknown"
+service_ok = (service_status == "active")
 
-MangaModel.all_for_analysis.each do |manga|
-  data_bruta = manga['last_release_at']
-  data_formatada = data_bruta ? Time.at(data_bruta).strftime("%d/%m/%Y") : "---"
-  inatividade = tempo_legivel(data_bruta)
-  
-  # Prioriza URLs para mostrar onde o mestre lê
-  link = manga['custom_url'] || manga['mp_url'] || manga['md_id'] || "❌"
-  
-  puts "%-25s | %-12s | %-10s | %-s" % [
-    manga['titulo'].to_s[0..24], 
-    data_formatada,
-    inatividade,
-    link.to_s[0..60]
-  ]
+# --- 2. Checagem de Processo (Ruby) ---
+# Busca o API Listener nas sombras do sistema
+process_check = `ps aux | grep "[a]pi_listener"`.strip rescue ""
+process_ok = !process_check.empty?
+
+# --- 3. Checagem de Persistência (Banco) ---
+db_ok = false
+begin
+  MangaModel.db.execute("SELECT 1")
+  db_ok = true
+rescue
+  db_ok = false
 end
-puts "-" * 120
+
+# --- 4. Checagem de Sincronização (Cron/Sync) ---
+last_sync = SystemModel.get_last_check
+sync_ok = (Time.now.to_i - last_sync) < (25 * 3600) # Reclama se passar de 25h
+
+puts "🏛️  --- MANGOLIER COCKPIT : SAÚDE DO SISTEMA ---"
+puts "------------------------------------------------"
+puts "📦 SERVIÇO (Systemd) : [%-8s] (%s)" % [status_label(service_ok), service_status]
+puts "🎧 LISTENER (API)     : [%-8s] (Processo Ativo)" % [status_label(process_ok)]
+puts "🗄️  BANCO DE DADOS     : [%-8s] (SQLite Mangofier)" % [status_label(db_ok)]
+puts "🔄 SINCRONIZAÇÃO     : [%-8s] (Última: #{Time.at(last_sync).strftime('%d/%m %H:%M')} - Há #{tempo_legivel(last_sync)})" % [status_label(sync_ok)]
+puts "------------------------------------------------"
+
+# --- 5. Resumo da Biblioteca ---
+mangas = MangaModel.all_for_analysis
+total = mangas.length
+ativos = mangas.count { |m| m['last_release_at'] && (Time.now.to_i - m['last_release_at']) < (180 * 24 * 3600) }
+abandonados = total - ativos
+
+puts "\n📊 RESUMO DA BIBLIOTECA"
+puts "Total de Obras: #{total}"
+puts "Obras Ativas  : #{ativos}"
+puts "Em Hiato/Aband: #{abandonados}"
+puts "------------------------------------------------"
+
+# Se o mestre quiser detalhes, ele usa o analyzer list
+puts "💡 Dica: Use 'ruby bin/mangofier_analyzer list' para o relatório detalhado."
+puts "Pollux encerrou o diagnóstico. Murphy foi avistado fugindo."

@@ -9,6 +9,17 @@ class SystemModel
           valor TEXT
         );
       SQL
+
+      db.execute(<<~SQL)
+        CREATE TABLE IF NOT EXISTS mangas_mapeados (
+          mu_id INTEGER PRIMARY KEY,
+          titulo TEXT,
+          md_id TEXT,
+          mp_url TEXT,
+          custom_url TEXT,
+          last_release_at INTEGER
+        );
+      SQL
     end
   end
 

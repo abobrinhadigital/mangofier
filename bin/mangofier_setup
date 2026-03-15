@@ -28,7 +28,12 @@ fi
 echo "📦 Instalando gems (Bundler)..."
 bundle install
 
-# 5. Prepara o banco de dados e faz o sync inicial
+# 5. Prepara o banco de dados e migrações
+echo "🧱 Rodando migrações de banco de dados..."
+chmod +x bin/mangofier_migrate
+ruby bin/mangofier_migrate
+
+# 6. Faz o sync inicial
 echo "🔄 Sincronizando com MangaUpdates (Pode levar alguns segundos)..."
 ruby bin/mangofier_sync
 

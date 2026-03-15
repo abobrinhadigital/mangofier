@@ -56,6 +56,28 @@ class MangaUpdates
     end
   end
 
+  # Versão turbinada que traz os metadados (last_updated) de toda a lista de uma vez de forma atômica
+  def fetch_reading_list_with_metadata
+    login if @token.nil?
+    
+    response = @conn.post('lists/0/search') do |req|
+      req.headers['Authorization'] = "Bearer #{@token}"
+      req.body = {} # Sem paginação = Lista completa (Truque do Mestre)
+    end
+
+    if response.status == 200 && response.body[:results]
+      return response.body[:results].map do |item|
+        {
+          mu_id: item.dig(:record, :series, :id),
+          titulo: item.dig(:record, :series, :title),
+          last_updated: item.dig(:metadata, :series, :last_updated, :timestamp)
+        }
+      end
+    end
+    
+    []
+  end
+
 # A NOVA BUSCA POR TEMPO (Corrigida e com Visão de Raio-X)
   def check_new_releases(last_check_timestamp)
     # Transforma o nosso timestamp num formato "YYYY-MM-DD" para o start_date
@@ -125,5 +147,58 @@ class MangaUpdates
     end
     
     return lancamentos_validos, maior_timestamp
+  end
+
+  # Busca metadados precisos da série usando o endpoint de groups (Sugestão do MESTRE 🏆)
+  # Este endpoint é o único que separa os lançamentos reais da obra da "fofoca global" da API.
+  def fetch_series_last_release_date(series_title)
+    login if @token.nil?
+    
+    # PASSO 1: Descobrir o ID LONGO de 11 dígitos (A API v1 ignora IDs curtos em muitos filtros)
+    search_resp = @conn.post("series/search") do |req|
+      req.body = { search: series_title, per_page: 5 }
+    end
+
+    if search_resp.status == 200 && search_resp.body[:results]
+      # Match por título exato para evitar falsos positivos
+      match = search_resp.body[:results].find do |r|
+        mu_titulo = r.dig(:record, :title)
+        mu_titulo && mu_titulo.downcase.strip == series_title.downcase.strip
+      end
+      
+      # Se não achar match exato, tentamos o primeiro (melhor que nada)
+      match ||= search_resp.body[:results].first
+      mu_id_longo = match.dig(:record, :series_id) if match
+
+      if mu_id_longo
+        # PASSO 2: Consultar o endpoint de GROUPS sugerido pelo mestre para pegar a release_list real
+        groups_resp = @conn.get("series/#{mu_id_longo}/groups") do |req|
+          req.headers['Authorization'] = "Bearer #{@token}"
+        end
+
+        if groups_resp.status == 200 && groups_resp.body[:release_list]
+          # Pega o primeiro (mais recente) da lista de lançamentos da obra
+          top = groups_resp.body[:release_list].first
+          return top.dig(:time_added, :timestamp).to_i if top
+        end
+      end
+    end
+    
+    nil # Não encontrado ou sem data real
+  end
+
+  # Busca detalhes completos de uma série (incluindo o last_updated.timestamp sugerido pelo mestre)
+  def fetch_series_details(mu_id)
+    login if @token.nil?
+    
+    response = @conn.get("series/#{mu_id}") do |req|
+      req.headers['Authorization'] = "Bearer #{@token}"
+    end
+
+    if response.status == 200
+      return response.body
+    end
+    
+    nil
   end
 end

@@ -1,20 +1,45 @@
 #!/usr/bin/env ruby
 require_relative '../config/environment'
 
-puts "📊 --- STATUS DA BIBLIOTECA DO MESTRE ---"
-puts "%-25s | %-36s | %-30s | %-s" % ["Título", "MangaDex ID", "MangaPlus URL", "Custom URL"]
-puts "-" * 150
-
-MangaModel.db.execute("SELECT * FROM mangas_mapeados").each do |manga|
-  md = manga['md_id'] || "❌"
-  mp = manga['mp_url'] || "---"
-  custom = manga['custom_url'] || "---"
+# Helper para transformar tempo em algo que humanos (e Pollux) entendam
+def tempo_legivel(segundos)
+  return "N/A" if segundos.nil? || segundos <= 0
   
-  puts "%-25s | %-36s | %-30s | %-s" % [
+  agora = Time.now.to_i
+  diff = agora - segundos
+  return "Recente" if diff < 0
+  
+  anos = diff / (365 * 24 * 3600)
+  diff %= (365 * 24 * 3600)
+  meses = diff / (30 * 24 * 3600)
+  diff %= (30 * 24 * 3600)
+  dias = diff / (24 * 3600)
+  
+  partes = []
+  partes << "#{anos}a" if anos > 0
+  partes << "#{meses}m" if meses > 0
+  partes << "#{dias}d" if dias > 0 || partes.empty?
+  
+  partes.join(" ")
+end
+
+puts "📊 --- STATUS DA BIBLIOTECA DO MESTRE ---"
+puts "%-25s | %-12s | %-10s | %-s" % ["Título", "Últ. Lançam.", "Inativo", "Caminho / Link"]
+puts "-" * 120
+
+DB.execute("SELECT * FROM mangas_mapeados ORDER BY titulo ASC").each do |manga|
+  data_bruta = manga['last_release_at']
+  data_formatada = data_bruta ? Time.at(data_bruta).strftime("%d/%m/%Y") : "---"
+  inatividade = tempo_legivel(data_bruta)
+  
+  # Prioriza URLs para mostrar onde o mestre lê
+  link = manga['custom_url'] || manga['mp_url'] || manga['md_id'] || "❌"
+  
+  puts "%-25s | %-12s | %-10s | %-s" % [
     manga['titulo'].to_s[0..24], 
-    md, 
-    mp.to_s[0..29],
-    custom
+    data_formatada,
+    inatividade,
+    link.to_s[0..60]
   ]
 end
-puts "-" * 150
+puts "-" * 120

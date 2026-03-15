@@ -1,0 +1,125 @@
+#!/usr/bin/env ruby
+# bin/mangofier_analyzer
+# "O Inspetor de Defuntos" do Pollux (PRECISION EDITION 🎯). 
+# Verifica quais mangás estão há mais de 1 ano sem lançamentos REAIS.
+# O mestre detectou que o last_updated dos metadados mente!
+
+require_relative '../config/environment'
+require_relative '../lib/manga_updates'
+require 'time'
+
+puts "🕵️  Pollux está iniciando a inspeção de cemitério (Modo de Precisão)..."
+puts "⏳ Mestre, isso vai levar tempo. Vou esperar 5 segundos entre cada obra para não sermos banidos."
+
+# Helper para transformar tempo em algo que humanos (e Pollux) entendam
+def tempo_legivel(segundos)
+  return "0 dias" if segundos <= 0
+  
+  anos = segundos / (365 * 24 * 3600)
+  segundos %= (365 * 24 * 3600)
+  meses = segundos / (30 * 24 * 3600)
+  segundos %= (30 * 24 * 3600)
+  dias = segundos / (24 * 3600)
+  
+  partes = []
+  partes << "#{anos}a" if anos > 0
+  partes << "#{meses}m" if meses > 0
+  partes << "#{dias}d" if dias > 0 || partes.empty?
+  
+  partes.join(" ")
+end
+
+begin
+  mu = MangaUpdates.new
+  
+  # Pega os mangás que o senhor registrou no banco
+  mangas = DB.execute("SELECT mu_id, titulo FROM mangas_mapeados ORDER BY titulo ASC")
+  
+  if mangas.empty?
+    puts "🕳️  Mestre, sua biblioteca local está vazia. Nada para analisar."
+    exit
+  end
+
+  registros_alertas = []
+
+  mangas.each_with_index do |manga, index|
+    mu_id = manga['mu_id']
+    titulo = manga['titulo']
+    
+    begin
+      # BUSCA POR LANÇAMENTO REAL (Endpoint de Releases usando o TÍTULO para filtrar)
+      last_release_ts = mu.fetch_series_last_release_date(titulo)
+      
+      if last_release_ts
+        agora = Time.now
+        data_obj = Time.at(last_release_ts)
+        diff_segundos = (agora - data_obj).to_i
+        dias_atras = diff_segundos / (24 * 3600)
+        
+        status = if dias_atras > 365
+                   "💀 ABANDONADO"
+                 elsif dias_atras > 180
+                   "⚠️ ALERTA"
+                 else
+                   "✅ ATIVO"
+                 end
+        
+        # GRAVAÇÃO NO BANCO: O senhor agora terá os dados persistidos!
+        DB.execute("UPDATE mangas_mapeados SET last_release_at = ? WHERE mu_id = ?", [last_release_ts, mu_id])
+
+        registros_alertas << {
+          status: status,
+          id: mu_id.to_s(36),
+          titulo: titulo,
+          data: data_obj.strftime("%d/%m/%Y"),
+          tempo: tempo_legivel(diff_segundos),
+          segundos: diff_segundos # Para ordenação robusta
+        }
+      else
+        registros_alertas << {
+          status: "❓ DESCONHECIDO",
+          id: mu_id.to_s(36),
+          titulo: titulo,
+          data: "Nunca",
+          tempo: "N/A",
+          segundos: 0
+        }
+      end
+
+      # Feedback visual de progresso (X/TOTAL)
+      print "\r⏳ Analisando: #{index + 1}/#{mangas.length} - #{titulo.to_s[0..30]}... "
+      $stdout.flush
+
+      # O MESTRE MANDOU: Intervalo de 5 segundos
+      sleep(5) if index < mangas.length - 1
+      
+    rescue => e
+      puts "\n🚨 Erro ao analisar #{titulo}: #{e.message}"
+    end
+  end
+
+  # Ordena pelos mais abandonados (usando segundos em vez de string)
+  registros_alertas.sort_by! { |r| r[:segundos] }.reverse!
+
+  puts "\n\n📊 --- RELATÓRIO DE ABANDONO DO MESTRE (PRECISÃO TOTAL) ---"
+  puts "-" * 90
+  puts "%-15s | %-8s | %-30s | %-12s | %-10s" % ["Status", "ID (b36)", "Título", "Últ. Lançam.", "Inativo há"]
+  puts "-" * 90
+
+  registros_alertas.each do |r|
+    puts "%-15s | %-8s | %-30s | %-12s | %-10s" % [
+      r[:status],
+      r[:id],
+      r[:titulo].to_s[0..29],
+      r[:data],
+      r[:tempo]
+    ]
+  end
+
+  puts "-" * 90
+  total_mortos = registros_alertas.count { |r| r[:status] == "💀 ABANDONADO" }
+  puts "🏁 Inspeção finalizada. Encontrei #{total_mortos} defuntos reais na sua lista de #{mangas.length} obras monitoradas."
+
+rescue => e
+  puts "\n🚨 Falha na inspeção técnica: #{e.class} - #{e.message}"
+end

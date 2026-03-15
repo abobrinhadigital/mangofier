@@ -25,12 +25,117 @@ def tempo_legivel(segundos)
   partes.join(" ")
 end
 
-begin
-  mu = MangaUpdates.new
-  modo_start = ARGV.include?("start")
-  modo_abandon = ARGV.include?("abandon")
-  modo_list = ARGV.include?("list")
+# --- MÉTODOS DE ORQUESTRAÇÃO (Modularização Pollux 🏛️) ---
+
+def run_start(mu, mangas)
+  puts "📡 MODALIDADE START: Varrendo a API para atualizar as datas..."
+  mangas.each_with_index do |manga, index|
+    mu_id = manga['mu_id']
+    titulo = manga['titulo']
+    
+    print "\r⏳ Analisando: #{index + 1}/#{mangas.length} - #{titulo.to_s[0..30]}... "
+    $stdout.flush
+    
+    begin
+      last_release_ts = mu.fetch_series_last_release_date(titulo, mu_id)
+      if last_release_ts
+        MangaModel.update_last_release(mu_id, last_release_ts)
+      end
+    rescue => e
+      puts "\n🚨 Erro em #{titulo}: #{e.message}"
+    end
+    
+    sleep(5) if index < mangas.length - 1
+  end
+  puts "\n✅ Análise concluída e banco atualizado!"
+end
+
+def run_abandon(mu, mangas)
+  puts "🪓 MODALIDADE ABANDON (Atomic Bulk Edition): Movendo desertores há +2 anos..."
   
+  candidatos = mangas.select do |m|
+    last_ts = m['last_release_at']
+    last_ts.nil? || (Time.now.to_i - last_ts) > (730 * 24 * 3600)
+  end
+
+  if candidatos.empty?
+    puts "✅ Nenhum mangá atende aos critérios de expurgo (+2 anos)."
+    return
+  end
+
+  puts "💀 Encontrados #{candidatos.length} candidatos ao expurgo."
+  
+  # Executa a movimentação atômica delegando a montagem ao MangaUpdates
+  if mu.bulk_move_to_list(candidatos, 106)
+    # Sucesso na API -> Limpa a base local para manter o sincronismo 🏛️
+    mu_ids = candidatos.map { |m| m['mu_id'] }
+    MangaModel.delete_collection(mu_ids)
+    
+    # Notifica o Mestre da vitória no Pollux-Telegram 🏛️📢
+    Pessegram.new.gritar("🪓 *Mangofier (Atomic Move):* #{candidatos.length} obras movidas para Abandonados.")
+    
+    puts "🏁 Movimentação concluída na API e banco local limpo."
+  else
+    puts "🚨 A movimentação em lote falhou. Nada foi alterado localmente."
+  end
+end
+
+def run_list(mangas)
+  registros = []
+  mangas.each do |manga|
+    last_ts = manga['last_release_at']
+    tempo = last_ts ? tempo_legivel(Time.now.to_i - last_ts) : "N/A"
+    data = last_ts ? Time.at(last_ts).strftime("%d/%m/%Y") : "Nunca"
+    
+    link = if manga['custom_url'] && !manga['custom_url'].empty?
+             manga['custom_url']
+           elsif manga['md_id'] && !manga['md_id'].empty?
+             "https://mangadex.org/title/#{manga['md_id']}"
+           elsif manga['mp_url'] && !manga['mp_url'].empty?
+             manga['mp_url']
+           else
+             "❌ Sem Link"
+           end
+
+    status = if last_ts.nil?
+               "❓ DESCONHECIDO"
+             elsif (Time.now.to_i - last_ts) > (730 * 24 * 3600)
+               "💀 ABANDONADO"
+             elsif (Time.now.to_i - last_ts) > (365 * 24 * 3600)
+               "⚠️ ALERTA"
+             else
+               "✅ ATIVO"
+             end
+
+    registros << { 
+      status: status, 
+      mu_id: manga['mu_id'],
+      id: manga['mu_id'].to_s(36), 
+      titulo: manga['titulo'], 
+      data: data, 
+      tempo: tempo,
+      link: link,
+      segundos: last_ts ? (Time.now.to_i - last_ts) : 999999999
+    }
+  end
+
+  registros.sort_by! { |r| r[:segundos] }.reverse!
+
+  puts "\n📊 --- RELATÓRIO DE STATUS (DADOS DO BANCO) ---"
+  puts "-" * 150
+  puts "%-15s | %-10s | %-8s | %-30s | %-12s | %-10s | %-40s" % ["Status", "ID (num)", "ID (b36)", "Título", "Últ. Lançam.", "Inativo há", "Link de Leitura"]
+  puts "-" * 150
+  registros.each do |r|
+    puts "%-15s | %-10s | %-8s | %-30s | %-12s | %-10s | %-40s" % [
+      r[:status], r[:mu_id], r[:id], r[:titulo].to_s[0..29], r[:data], r[:tempo], r[:link].to_s[0..39]
+    ]
+  end
+  puts "-" * 150
+end
+
+# --- FLUXO PRINCIPAL ---
+
+begin
   # Menu de Ajuda (O Mestre mandou ser organizado! 🏛️)
   if ARGV.empty?
     puts "🥭 --- MANGODIER ANALYZER : MENU DE COMANDOS ---"
@@ -43,6 +148,9 @@ begin
     puts "-" * 50
     exit
   end
+
+  # Inicializa MangaUpdates APENAS se houver comando
+  mu = MangaUpdates.new
   
   # Pega os mangás do banco (Via MangaModel 🏛️)
   mangas = MangaModel.all_for_analysis
@@ -52,118 +160,16 @@ begin
     exit
   end
 
-  # --- MODO 1: START (A BUSCA LENTA NA API) ---
-  if modo_start
-    puts "📡 MODALIDADE START: Varrendo a API para atualizar as datas..."
-    mangas.each_with_index do |manga, index|
-      mu_id = manga['mu_id']
-      titulo = manga['titulo']
-      
-      print "\r⏳ Analisando: #{index + 1}/#{mangas.length} - #{titulo.to_s[0..30]}... "
-      $stdout.flush
-      
-      begin
-        last_release_ts = mu.fetch_series_last_release_date(titulo, mu_id)
-        if last_release_ts
-          MangaModel.update_last_release(mu_id, last_release_ts)
-        end
-      rescue => e
-        puts "\n🚨 Erro em #{titulo}: #{e.message}"
-      end
-      
-      sleep(5) if index < mangas.length - 1
-    end
-    puts "\n✅ Análise concluída e banco atualizado!"
-    exit
+  # Execução baseada nos argumentos
+  if ARGV.include?("start")
+    run_start(mu, mangas)
+  elsif ARGV.include?("abandon")
+    run_abandon(mu, mangas)
+  elsif ARGV.include?("list")
+    run_list(mangas)
+  else
+    puts "🚨 Parâmetro desconhecido. Use 'ruby bin/mangofier_analyzer' para ver a ajuda."
   end
-
-  # --- MODO 2: ABANDON (O EXPURGO RÁPIDO VIA BANCO) ---
-  if modo_abandon
-    puts "🪓 MODALIDADE ABANDON: Movendo desertores há +2 anos..."
-    
-    mangas.each do |manga|
-      mu_id = manga['mu_id']
-      titulo = manga['titulo']
-      last_ts = manga['last_release_at']
-      
-      is_abandoned = last_ts.nil? || (Time.now.to_i - last_ts) > (730 * 24 * 3600)
-      
-      if is_abandoned
-        puts "💀 Expulsando '#{titulo}'..."
-        if mu.add_to_list(mu_id, 106)
-          sleep(5)
-          if mu.remove_from_list(mu_id, 0)
-            MangaModel.delete_by_mu_id(mu_id)
-            puts "✅ '#{titulo}' movido para Abandonados e removido localmente."
-            Pessegram.new.gritar("🪓 *Mangofier (Expurgo):* \"#{titulo}\" removido.")
-            sleep(5)
-          end
-        else
-          puts "🚨 Falha ao mover no MangaUpdates."
-        end
-      end
-    end
-    puts "🏁 Limpeza terminada."
-    exit
-  end
-
-  # --- MODO 3: LIST (O RELATÓRIO DO MESTRE) ---
-  if modo_list
-    registros = []
-    mangas.each do |manga|
-      last_ts = manga['last_release_at']
-      tempo = last_ts ? tempo_legivel(Time.now.to_i - last_ts) : "N/A"
-      data = last_ts ? Time.at(last_ts).strftime("%d/%m/%Y") : "Nunca"
-      
-      link = if manga['custom_url'] && !manga['custom_url'].empty?
-               manga['custom_url']
-             elsif manga['md_id'] && !manga['md_id'].empty?
-               "https://mangadex.org/title/#{manga['md_id']}"
-             elsif manga['mp_url'] && !manga['mp_url'].empty?
-               manga['mp_url']
-             else
-               "❌ Sem Link"
-             end
-
-      status = if last_ts.nil?
-                 "❓ DESCONHECIDO"
-               elsif (Time.now.to_i - last_ts) > (365 * 24 * 3600)
-                 "💀 ABANDONADO"
-               elsif (Time.now.to_i - last_ts) > (180 * 24 * 3600)
-                 "⚠️ ALERTA"
-               else
-                 "✅ ATIVO"
-               end
-
-      registros << { 
-        status: status, 
-        mu_id: manga['mu_id'],
-        id: manga['mu_id'].to_s(36), 
-        titulo: manga['titulo'], 
-        data: data, 
-        tempo: tempo,
-        link: link,
-        segundos: last_ts ? (Time.now.to_i - last_ts) : 999999999
-      }
-    end
-
-    registros.sort_by! { |r| r[:segundos] }.reverse!
-
-    puts "\n📊 --- RELATÓRIO DE STATUS (DADOS DO BANCO) ---"
-    puts "-" * 150
-    puts "%-15s | %-10s | %-8s | %-30s | %-12s | %-10s | %-40s" % ["Status", "ID (num)", "ID (b36)", "Título", "Últ. Lançam.", "Inativo há", "Link de Leitura"]
-    puts "-" * 150
-    registros.each do |r|
-      puts "%-15s | %-10s | %-8s | %-30s | %-12s | %-10s | %-40s" % [
-        r[:status], r[:mu_id], r[:id], r[:titulo].to_s[0..29], r[:data], r[:tempo], r[:link].to_s[0..39]
-      ]
-    end
-    puts "-" * 150
-    exit
-  end
-
-  # Se chegou aqui com parâmetro inválido
-  puts "🚨 Parâmetro desconhecido. Use 'ruby bin/mangofier_analyzer' para ver a ajuda."
 
 rescue => e
   puts "\n🚨 Falha na execução: #{e.class} - #{e.message}"

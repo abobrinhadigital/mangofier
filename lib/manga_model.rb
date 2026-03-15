@@ -43,6 +43,13 @@ class MangaModel
     DB.execute("DELETE FROM mangas_mapeados WHERE mu_id = ?", [mu_id])
   end
 
+  # Remove múltiplos mangás da base local (Ordem do Mestre 🏛️)
+  def self.delete_collection(mu_ids)
+    return if mu_ids.empty?
+    placeholders = (['?'] * mu_ids.length).join(',')
+    DB.execute("DELETE FROM mangas_mapeados WHERE mu_id IN (#{placeholders})", mu_ids)
+  end
+
   # Retorna todos os mangás com seus links e datas para análise (Centralização Pollux 🏛️)
   def self.all_for_analysis
     DB.execute("SELECT mu_id, titulo, last_release_at, mp_url, md_id, custom_url FROM mangas_mapeados ORDER BY titulo ASC")

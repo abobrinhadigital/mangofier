@@ -237,4 +237,33 @@ class MangaUpdates
 
     response.status == 200
   end
+
+  # Move várias séries de uma vez para uma nova lista (O Atropelamento Atômico 🏛️)
+  def bulk_move_to_list(collection, list_id)
+    login if @token.nil?
+    
+    # Monta o payload conforme a documentação enviada pelo Mestre
+    payload = collection.map do |m|
+      mu_id = m[:mu_id] || m['mu_id']
+      {
+        series: { id: mu_id },
+        list_id: list_id
+      }
+    end
+
+    puts "📡 Enviando lote de #{payload.length} obras para a Lista #{list_id}..."
+    
+    response = @conn.post("lists/series/update") do |req|
+      req.headers['Authorization'] = "Bearer #{@token}"
+      req.body = payload
+    end
+
+    if response.status == 200
+      puts "✅ Lote processado com sucesso pelo MangaUpdates."
+      return true
+    else
+      puts "🚨 Falha no Bulk Update. Status: #{response.status}"
+      return false
+    end
+  end
 end

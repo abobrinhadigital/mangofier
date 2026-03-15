@@ -32,18 +32,13 @@ service_status = `systemctl is-active mangofier.service`.strip rescue "unknown"
 service_ok = (service_status == "active")
 
 # --- 2. Checagem de Processo (Ruby) ---
-# Busca o API Listener nas sombras do sistema
-process_check = `ps aux | grep "[a]pi_listener"`.strip rescue ""
+# Busca o serviço ou o listener (ps aux é o feijão com arroz universal)
+process_check = `ps aux | grep -E "mangofier_service|api_listener" | grep -v grep`.strip rescue ""
 process_ok = !process_check.empty?
 
 # --- 3. Checagem de Persistência (Banco) ---
-db_ok = false
-begin
-  MangaModel.db.execute("SELECT 1")
-  db_ok = true
-rescue
-  db_ok = false
-end
+# Usando o método oficial do Modelo como o mestre exige!
+db_ok = MangaModel.health_check?
 
 # --- 4. Checagem de Sincronização (Cron/Sync) ---
 last_sync = SystemModel.get_last_check

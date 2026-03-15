@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 require_relative '../config/environment'
-require_relative '../lib/manga_model'
 
 puts "📊 --- STATUS DA BIBLIOTECA DO MESTRE ---"
 puts "%-25s | %-36s | %-30s | %-s" % ["Título", "MangaDex ID", "MangaPlus URL", "Custom URL"]

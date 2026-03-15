@@ -1,7 +1,6 @@
 # lib/api_listener.rb
 require 'webrick'
 require 'json'
-require_relative 'manga_model'
 require_relative 'pessegram'
 
 module Mangofier

@@ -2,8 +2,6 @@
 # bin/mangofier_cron
 
 require_relative '../config/environment'
-require_relative '../config/environment'
-require_relative '../lib/system_model'
 require_relative '../lib/manga_updates'
 require_relative '../lib/pessegram'
 

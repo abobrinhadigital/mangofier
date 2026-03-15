@@ -1,5 +1,4 @@
 # lib/manga_model.rb
-require 'sqlite3'
 
 class MangaModel
   def self.db

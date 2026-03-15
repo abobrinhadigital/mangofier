@@ -19,3 +19,7 @@ DB = SQLite3::Database.new(DB_PATH)
 # Configurações Globais de Resiliência
 DB.results_as_hash = true
 DB.busy_timeout = 5000 
+
+# Carregamento automático das engrenagens do mestre
+require_relative '../lib/manga_model'
+require_relative '../lib/system_model'

@@ -1,6 +1,4 @@
 # lib/system_model.rb
-require 'sqlite3'
-require 'date'
 
 class SystemModel
   def self.db
@@ -31,6 +29,6 @@ class SystemModel
   end
 
   def self.set_last_check(timestamp)
-    db.execute("INSERT OR REPLACE INTO sistema (chave, valor) VALUES ('last_check', ?)", [timestamp.to_s])
+    DB.execute("INSERT OR REPLACE INTO sistema (chave, valor) VALUES ('last_check', ?)", [timestamp.to_s])
   end
 end

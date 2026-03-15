@@ -11,11 +11,11 @@ echo "🚀 Iniciando a manobra de atualização no servidor..."
 echo "🥭 Atualizando Mangofier..."
 git pull
 
-# Se o senhor mudar alguma biblioteca, o bundle se encarrega
-echo "💎 Verificando dependências (bundle)..."
-bundle install 
+# O Setup agora resolve tudo: gems, pastas, banco e sync.
+echo "⚙️  Rodando setup/update centralizado..."
+./bin/mangofier_setup
 
-# Reinicia o serviço para o Listener carregar o código novo
+# Reinicia o serviço para carregar o código novo e o banco atualizado
 echo "🥭 Reiniciando o listener do Mangofier..."
 systemctl restart mangofier.service
 

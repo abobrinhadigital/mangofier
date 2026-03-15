@@ -151,36 +151,41 @@ class MangaUpdates
 
   # Busca metadados precisos da série usando o endpoint de groups (Sugestão do MESTRE 🏆)
   # Este endpoint é o único que separa os lançamentos reais da obra da "fofoca global" da API.
-  def fetch_series_last_release_date(series_title)
+  # @param series_title [String] Título da série para busca textual (fallback)
+  # @param mu_id_longo [Integer] ID de 11 dígitos da obra (se já conhecido)
+  def fetch_series_last_release_date(series_title, mu_id_longo = nil)
     login if @token.nil?
     
-    # PASSO 1: Descobrir o ID LONGO de 11 dígitos (A API v1 ignora IDs curtos em muitos filtros)
-    search_resp = @conn.post("series/search") do |req|
-      req.body = { search: series_title, per_page: 5 }
+    # Se já temos o ID longo (vários dígitos), pulamos a busca textual. O mestre gosta de atalhos!
+    unless mu_id_longo && mu_id_longo.to_s.length > 8
+      # PASSO 1: Descobrir o ID LONGO de 11 dígitos (A API v1 ignora IDs curtos em muitos filtros)
+      search_resp = @conn.post("series/search") do |req|
+        req.body = { search: series_title, per_page: 5 }
+      end
+
+      if search_resp.status == 200 && search_resp.body[:results]
+        # Match por título exato para evitar falsos positivos
+        match = search_resp.body[:results].find do |r|
+          mu_titulo = r.dig(:record, :title)
+          mu_titulo && mu_titulo.downcase.strip == series_title.downcase.strip
+        end
+        
+        # Se não achar match exato, tentamos o primeiro (melhor que nada)
+        match ||= search_resp.body[:results].first
+        mu_id_longo = match.dig(:record, :series_id) if match
+      end
     end
 
-    if search_resp.status == 200 && search_resp.body[:results]
-      # Match por título exato para evitar falsos positivos
-      match = search_resp.body[:results].find do |r|
-        mu_titulo = r.dig(:record, :title)
-        mu_titulo && mu_titulo.downcase.strip == series_title.downcase.strip
+    if mu_id_longo
+      # PASSO 2: Consultar o endpoint de GROUPS sugerido pelo mestre para pegar a release_list real
+      groups_resp = @conn.get("series/#{mu_id_longo}/groups") do |req|
+        req.headers['Authorization'] = "Bearer #{@token}"
       end
-      
-      # Se não achar match exato, tentamos o primeiro (melhor que nada)
-      match ||= search_resp.body[:results].first
-      mu_id_longo = match.dig(:record, :series_id) if match
 
-      if mu_id_longo
-        # PASSO 2: Consultar o endpoint de GROUPS sugerido pelo mestre para pegar a release_list real
-        groups_resp = @conn.get("series/#{mu_id_longo}/groups") do |req|
-          req.headers['Authorization'] = "Bearer #{@token}"
-        end
-
-        if groups_resp.status == 200 && groups_resp.body[:release_list]
-          # Pega o primeiro (mais recente) da lista de lançamentos da obra
-          top = groups_resp.body[:release_list].first
-          return top.dig(:time_added, :timestamp).to_i if top
-        end
+      if groups_resp.status == 200 && groups_resp.body[:release_list]
+        # Pega o primeiro (mais recente) da lista de lançamentos da obra
+        top = groups_resp.body[:release_list].first
+        return top.dig(:time_added, :timestamp).to_i if top
       end
     end
     
@@ -200,5 +205,29 @@ class MangaUpdates
     end
     
     nil
+  end
+
+  # Adiciona uma série a uma lista específica (ex: 106 para Abandoned)
+  def add_to_list(mu_id, list_id)
+    login if @token.nil?
+    
+    response = @conn.post("lists/series") do |req|
+      req.headers['Authorization'] = "Bearer #{@token}"
+      req.body = [{ series: { id: mu_id }, list_id: list_id }]
+    end
+
+    response.status == 200
+  end
+
+  # Remove uma série de uma lista específica (ex: 0 para Reading)
+  def remove_from_list(mu_id, list_id)
+    login if @token.nil?
+    
+    response = @conn.delete("lists/#{list_id}/series/delete") do |req|
+      req.headers['Authorization'] = "Bearer #{@token}"
+      req.body = [{ id: mu_id }]
+    end
+
+    response.status == 200
   end
 end

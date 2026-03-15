@@ -28,10 +28,9 @@ fi
 echo "📦 Instalando gems (Bundler)..."
 bundle install
 
-# 5. Prepara o banco de dados e migrações
-echo "🧱 Rodando migrações de banco de dados..."
-chmod +x bin/mangofier_migrate
-ruby bin/mangofier_migrate
+# 5. Prepara o banco de dados e migrações (O Pollux assume o controle via Ruby)
+echo "🧱 Garantindo integridade do banco de dados e esquema..."
+ruby -r "./config/environment" -e "puts '✅ Banco verificado via MangaModel e SystemModel.'"
 
 # 6. Faz o sync inicial
 echo "🔄 Sincronizando com MangaUpdates (Pode levar alguns segundos)..."

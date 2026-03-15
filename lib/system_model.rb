@@ -1,26 +1,13 @@
 # lib/system_model.rb
 
 class SystemModel
-  def self.db
-    DB.tap do |db|
-      db.execute(<<~SQL)
-        CREATE TABLE IF NOT EXISTS sistema (
-          chave TEXT PRIMARY KEY,
-          valor TEXT
-        );
-      SQL
-
-      db.execute(<<~SQL)
-        CREATE TABLE IF NOT EXISTS mangas_mapeados (
-          mu_id INTEGER PRIMARY KEY,
-          titulo TEXT,
-          md_id TEXT,
-          mp_url TEXT,
-          custom_url TEXT,
-          last_release_at INTEGER
-        );
-      SQL
-    end
+  def self.ensure_schema
+    DB.execute(<<~SQL)
+      CREATE TABLE IF NOT EXISTS sistema (
+        chave TEXT PRIMARY KEY,
+        valor TEXT
+      );
+    SQL
   end
 
   def self.get_last_check

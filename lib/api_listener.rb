@@ -66,10 +66,7 @@ module Mangofier
             manga = MangaModel.find_by_mu_id(mu_id_dec)
             titulo = manga ? manga['titulo'] : "Mangá ID #{mu_id_dec}"
 
-            MangaModel.db.execute(
-              "UPDATE mangas_mapeados SET #{coluna} = ? WHERE mu_id = ?",
-              [valor_final, mu_id_dec]
-            )
+            MangaModel.update_link(mu_id_dec, coluna, valor_final)
             
             # 4. Feedback para o Mestre via Telegram
             pessegram = Pessegram.new

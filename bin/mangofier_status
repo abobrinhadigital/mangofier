@@ -27,7 +27,7 @@ puts "📊 --- STATUS DA BIBLIOTECA DO MESTRE ---"
 puts "%-25s | %-12s | %-10s | %-s" % ["Título", "Últ. Lançam.", "Inativo", "Caminho / Link"]
 puts "-" * 120
 
-DB.execute("SELECT * FROM mangas_mapeados ORDER BY titulo ASC").each do |manga|
+MangaModel.all_for_analysis.each do |manga|
   data_bruta = manga['last_release_at']
   data_formatada = data_bruta ? Time.at(data_bruta).strftime("%d/%m/%Y") : "---"
   inatividade = tempo_legivel(data_bruta)

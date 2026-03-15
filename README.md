@@ -2,51 +2,51 @@
 
 O **Mangofier** é o sentinela bilingue do ecossistema Abobrinha Digital. Sua única missão é garantir que o Mestre Marcelo nunca perca um capítulo de seus mangás e, mais importante, nunca precise gastar mais do que dois cliques para organizar sua biblioteca. Ele é o braço direito do Pessegram na guerra contra a desorganização e o azar de Murphy.
 
-## Funcionalidades v1.0
+## Funcionalidades v1.1 (Era da Automação)
 
-### 1. Monitoramento Incansável (MangaUpdates)
-- **Reading List Sync**: Sincronização diária com a conta oficial do mestre no MangaUpdates.
-- **Detecção de Capítulos**: Checagem periódica de novos lançamentos usando a API do MangaUpdates.
-- **Memória Blindada**: Uso do `SystemModel` para lembrar exatamente quando foi a última checagem, evitando spam ou missões repetidas.
+### 1. Monitoramento e Auto-Gestão
+- **Reading List Sync**: Sincronização automática com a conta oficial do mestre no MangaUpdates.
+- **Detecção de Capítulos**: Checagem periódica de novos lançamentos.
+- **Auto-Cura de Banco (ensure_schema)**: O Mangofier agora possui consciência do próprio banco. Ele cria tabelas e injeta novas colunas automaticamente no boot, protegendo o mestre de migrações manuais catastróficas.
 
 ### 2. Comunicação Reversa (API Listener)
-- **O Gêmeo que Ouve**: Um servidor WEBrick ultra-leve rodando na porta `7356` para receber links diretamente do Pessegram.
-- **Extração Inteligente (Base36)**: O Mangofier é capaz de ler uma URL do MangaUpdates e converter o ID Base36 de volta para o ID decimal do banco de dados. Magia negra? Não, apenas tecnologia.
-- **Roteador de Links**: Identifica automaticamente se o link enviado é do **MangaDex**, **MangaPlus** ou uma URL customizada, salvando na gaveta correta do SQLite.
+- **O Gêmeo que Ouve**: Um servidor WEBrick ultra-leve (porta `7356`) que recebe links do Pessegram.
+- **Extração Inteligente (Base36)**: Converte IDs do MangaUpdates de volta para decimal de forma transparente.
+- **Persistência Blindada**: Toda atualização de link agora passa pelos Modelos (MangaModel), garantindo que nada além do que foi planejado seja escrito no banco.
 
-### 3. Integração Pessegram
-- **Notificações Ativas**: Manda alertas para o Telegram quando sai capítulo novo.
-- **Feedback em Tempo Real**: Responde ao mestre confirmando se o link foi cadastrado com sucesso ou se Murphy interferiu na transmissão.
+### 3. Setup e Update Definitivo
+- **`bin/mangofier_setup`**: O cérebro da instalação. Prepara pastas, instala gems, garante o banco e faz o sync inicial. É idempotente e resiliente.
+- **`./update.sh`**: O comando definitivo para o mestre. Puxa o código, roda o setup e reinicia os serviços. Tudo em um só lugar.
 
 ### 4. Painel de Controle (CLI)
-- **`bin/mangofier_status`**: Uma tabela elegante para o mestre visualizar o estado atual de sua biblioteca sem precisar abrir o banco de dados.
-- **`bin/mangofier_service`**: O motor principal que mantém o ouvinte vivo e atento.
+- **`bin/mangofier_status`**: Tabela elegante para visualizar a biblioteca, data de lançamentos e inatividade das obras.
+- **`bin/mangofier_analyzer`**: O "Inspetor de Defuntos". Identifica obras abandonadas e limpa o banco automaticamente.
 
-## Configuração e Instalação
+## Instalação e Uso
 
 ### Requisitos
 - Ruby 3.4.8+
 - SQLite3
-- O "Azar do Mestre" (opcional, já vem pré-instalado no ambiente)
+- Murphy (Inimigo declarado)
 
-### Configuração Inicial
-1. Copie o `.env.example` (ou o que sobrou dele) para `.env`.
-2. Preencha as credenciais:
-   - `MU_USERNAME` / `MU_PASSWORD`: Suas chaves do MangaUpdates.
-   - `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`: O megafone do Pessegram.
-   - `LISTENER_API_PORT`: Sugerimos `7356`.
-   - `LISTENER_API_TOKEN`: O segredo compartilhado com o Pessegram.
+### Início Rápido
+1. Configure o `.env` (use o `.env.example` como base).
+2. Execute o setup inicial:
+   ```bash
+   chmod +x bin/mangofier_setup
+   ./bin/mangofier_setup
+   ```
 
-### Execução
-- `bundle install`: Para instalar as gems (incluindo o fix do `webrick`).
-- `ruby bin/mangofier_sync`: Para o primeiro carregamento da sua lista.
-- `ruby bin/mangofier_service`: Para ligar o ouvinte API.
-- `ruby bin/mangofier_cron`: O script que deve morar no seu `crontab`.
+### Atualizando o Sistema
+Sempre que puxar mudanças ou quiser garantir que está tudo ok:
+```bash
+./update.sh
+```
 
 ## Estrutura do Projeto
-- `bin/`: Executáveis e ferramentas de status.
-- `lib/`: A lógica modular (Updates, Models, Listener, Pessegram).
-- `db/`: Onde mora o `mangofier.db` (blindado contra digitações erradas).
+- `bin/`: Executáveis e ferramentas de gestão.
+- `lib/`: A lógica modular (Manga/System Models, Updates, Listener, Pessegram).
+- `db/`: Onde mora o `mangofier.db` (auto-gerenciado).
 - `config/`: Configurações de ambiente resilientes.
 
 ---

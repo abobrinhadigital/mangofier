@@ -3,13 +3,8 @@ require 'sqlite3'
 require 'date'
 
 class SystemModel
-  DB_DIR = File.join(__dir__, '..', 'db')
-  DB_PATH = File.join(DB_DIR, 'mangofier.db')
-
   def self.db
-    @db ||= SQLite3::Database.new(DB_PATH).tap do |db|
-      db.results_as_hash = true
-      
+    DB.tap do |db|
       db.execute(<<~SQL)
         CREATE TABLE IF NOT EXISTS sistema (
           chave TEXT PRIMARY KEY,
@@ -20,7 +15,7 @@ class SystemModel
   end
 
   def self.get_last_check
-    row = db.execute("SELECT valor FROM sistema WHERE chave = 'last_check' LIMIT 1").first
+    row = DB.execute("SELECT valor FROM sistema WHERE chave = 'last_check' LIMIT 1").first
     
     if row
       return row['valor'].to_i

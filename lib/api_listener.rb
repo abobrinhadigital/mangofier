@@ -91,6 +91,47 @@ module Mangofier
         end
       end
 
+      # Novo endpoint para mapeamento ATIVO
+      # O senhor manda a URL do MU e o Mangofier te responde com a isca (o MU: no texto)
+      server.mount_proc '/mapearlink' do |req, res|
+        auth_header = req['authorization'] || req['Authorization']
+
+        if req.request_method == 'POST' && auth_header == "Bearer #{token}"
+          begin
+            payload = JSON.parse(req.body)
+            # Esperamos apenas { "mensagem" => "url_do_manga_updates" }
+            mu_url = payload['mensagem'].to_s
+            
+            mu_match = mu_url.match(/mangaupdates\.com\/series\/([a-z0-9]+)/i)
+            unless mu_match
+              res.status = 422
+              res.body = { erro: 'Isso não parece uma URL do MangaUpdates, mestre.' }.to_json
+              next
+            end
+
+            mu_id_dec = mu_match[1].to_i(36)
+            manga = MangaModel.find_by_mu_id(mu_id_dec)
+            titulo = manga ? manga['titulo'] : "Obra ID #{mu_id_dec}"
+
+            # A MÁGICA "VAGABUNDA":
+            # Enviamos uma mensagem que ativa o gatilho do Pessegram (contém MU:)
+            pessegram = Pessegram.new
+            pessegram.gritar("⭐ *Mangofier:* Mestre, o senhor quer mapear \"#{titulo}\"?\n\nResponda a esta mensagem com o novo link de leitura.\nℹ️ MU: #{mu_url}")
+
+            res.status = 200
+            res.body = { status: 'sucesso', mu_id: mu_id_dec }.to_json
+            puts "⭐ Pedido de mapeamento ativo enviado para \"#{titulo}\" (MU: #{mu_id_dec})"
+
+          rescue => e
+            res.status = 500
+            res.body = { erro: "O Mangofier engasgou no mapeamento: #{e.message}" }.to_json
+          end
+        else
+          res.status = 401
+          res.body = { erro: 'Acesso negado.' }.to_json
+        end
+      end
+
       Thread.new do
         puts "🎧 Mangofier Listener (o Gêmeo Silencioso) aguardando na porta #{port}..."
         server.start

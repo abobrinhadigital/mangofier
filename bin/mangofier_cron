@@ -5,14 +5,12 @@ require_relative '../config/environment'
 require_relative '../lib/manga_model'
 require_relative '../lib/system_model'
 require_relative '../lib/manga_updates'
-require_relative '../lib/manga_dex'
 require_relative '../lib/pessegram'
 
 puts "🔥 A iniciar o Mangofier (Time Lord Edition)..."
 
 begin
   mu = MangaUpdates.new
-  md = MangaDex.new
   pessegram = Pessegram.new
 
   last_check = SystemModel.get_last_check
@@ -36,18 +34,19 @@ begin
 
     mensagem = "🔥 Mestre, saiu o cap #{ultimo_capitulo} de #{titulo}!\n\n"
     
+    url_mu = "https://www.mangaupdates.com/series/#{mu_id.to_i.to_s(36)}"
+
     if db_manga['md_id']
-      cap_dex = md.get_latest_chapter_link(db_manga['md_id'], ['pt-br', 'en'])
-      mensagem += cap_dex ? "📖 Leia (Dex): #{cap_dex[:url]}" : "MangaDex falhou."
+      mensagem += "📖 Leia (Dex): https://mangadex.org/title/#{db_manga['md_id']}"
     elsif db_manga['mp_url']
       mensagem += "📖 Leia (Plus): #{db_manga['mp_url']}"
     elsif db_manga['custom_url']
-      mensagem += "📖 Leia (Lixeira): #{db_manga['custom_url']}"
+      mensagem += "📖 Leia (Outros): #{db_manga['custom_url']}"
     else
-      # A magia Base36 do MangaUpdates!
-      url_mu = "https://www.mangaupdates.com/series/#{mu_id.to_i.to_s(36)}"
-      mensagem += "⚠️ Não sei onde o senhor lê isto. Verifique o Scanlator:\n🔗 MU: #{url_mu}"
+      mensagem += "⚠️ Não sei onde o senhor lê isto. Verifique o Scanlator nas informações."
     end
+
+    mensagem += "\n\nℹ️ Veja informações da série no MU:\n#{url_mu}"
 
     pessegram.gritar(mensagem)
     

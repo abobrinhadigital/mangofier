@@ -3,18 +3,19 @@ require_relative '../config/environment'
 require_relative '../lib/manga_model'
 
 puts "📊 --- STATUS DA BIBLIOTECA DO MESTRE ---"
-puts "%-30s | %-12s | %-12s | %-s" % ["Título", "MangaDex ID", "MangaPlus", "Custom URL"]
-puts "-" * 100
+puts "%-25s | %-36s | %-30s | %-s" % ["Título", "MangaDex ID", "MangaPlus URL", "Custom URL"]
+puts "-" * 150
 
 MangaModel.db.execute("SELECT * FROM mangas_mapeados").each do |manga|
-  md = manga['md_id'] ? "✅" : "❌"
-  mp = manga['mp_url'] ? "✅" : "❌"
+  md = manga['md_id'] || "❌"
+  mp = manga['mp_url'] || "---"
+  custom = manga['custom_url'] || "---"
   
-  puts "%-30s | %-12s | %-12s | %-s" % [
-    manga['titulo'].to_s[0..28], 
+  puts "%-25s | %-36s | %-30s | %-s" % [
+    manga['titulo'].to_s[0..24], 
     md, 
-    mp, 
-    manga['custom_url'] || "---"
+    mp.to_s[0..29],
+    custom
   ]
 end
-puts "-" * 100
+puts "-" * 150

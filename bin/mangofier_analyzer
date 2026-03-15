@@ -137,6 +137,7 @@ begin
 
       registros << { 
         status: status, 
+        mu_id: manga['mu_id'],
         id: manga['mu_id'].to_s(36), 
         titulo: manga['titulo'], 
         data: data, 
@@ -149,15 +150,15 @@ begin
     registros.sort_by! { |r| r[:segundos] }.reverse!
 
     puts "\n📊 --- RELATÓRIO DE STATUS (DADOS DO BANCO) ---"
-    puts "-" * 140
-    puts "%-15s | %-8s | %-30s | %-12s | %-10s | %-40s" % ["Status", "ID (b36)", "Título", "Últ. Lançam.", "Inativo há", "Link de Leitura"]
-    puts "-" * 140
+    puts "-" * 150
+    puts "%-15s | %-10s | %-8s | %-30s | %-12s | %-10s | %-40s" % ["Status", "ID (num)", "ID (b36)", "Título", "Últ. Lançam.", "Inativo há", "Link de Leitura"]
+    puts "-" * 150
     registros.each do |r|
-      puts "%-15s | %-8s | %-30s | %-12s | %-10s | %-40s" % [
-        r[:status], r[:id], r[:titulo].to_s[0..29], r[:data], r[:tempo], r[:link].to_s[0..39]
+      puts "%-15s | %-10s | %-8s | %-30s | %-12s | %-10s | %-40s" % [
+        r[:status], r[:mu_id], r[:id], r[:titulo].to_s[0..29], r[:data], r[:tempo], r[:link].to_s[0..39]
       ]
     end
-    puts "-" * 140
+    puts "-" * 150
     exit
   end
 

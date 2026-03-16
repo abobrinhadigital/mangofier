@@ -69,6 +69,10 @@ class MangaModel
     DB.execute("UPDATE mangas_mapeados SET #{coluna} = ? WHERE mu_id = ?", [valor, mu_id])
   end
 
+  def self.update_md_id(mu_id, md_id)
+    DB.execute("UPDATE mangas_mapeados SET md_id = ? WHERE mu_id = ?", [md_id, mu_id])
+  end
+
   # Verifica se o banco está vivo e operante (Saúde do Pollux 🩺)
   def self.health_check?
     DB.execute("SELECT 1").first

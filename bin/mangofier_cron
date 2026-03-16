@@ -40,8 +40,21 @@ begin
     elsif db_manga['custom_url']
       mensagem += "📖 Leia (Outros): #{db_manga['custom_url']}"
     else
-      mensagem += "⚠️ Não sei onde o senhor lê isto. Verifique o Scanlator nas informações."
+      pagina_grupo = mu.fetch_group_site(mu_id)
+      if pagina_grupo
+        if pagina_grupo.to_s.match(/mangadex\.org\/title\/([a-z0-9]+)/i)
+          md_id = md_match[1]
+          MangaModel.update_md_id(mu_id, md_id)
+          mensagem += "📖 Leia (Grupo): https://mangadex.org/title/#{md_id}"
+        else
+          mensagem += "📖 Leia (Grupo): #{pagina_grupo}"
+        end
+      else
+        mensagem += "⚠️ Não sei onde o senhor lê isto. Verifique o Scanlator nas informações."
+      end
     end
+
+    mensagem += "\n\nSe esta página estiver errada, por favor, responda esta mensagem com o link correto."
 
     mensagem += "\n\nℹ️ Veja informações da série no MU:\n#{url_mu}"
 

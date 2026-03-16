@@ -266,4 +266,33 @@ class MangaUpdates
       return false
     end
   end
+
+  # criar novo método para buscar a página do grupo
+  def fetch_group_site(mu_id)
+    login if @token.nil?
+    
+    # aqui embaixo tem de ir a lógica parecida com o probe_mu_groups.rb
+    response = @conn.get("series/#{mu_id}/groups") do |req|
+      req.headers['Authorization'] = "Bearer #{@token}"
+    end
+    if response.status == 200
+      groups_data = response.body
+      
+      # Focar no group_list se existir
+      if groups_data[:release_list]
+        # 1. Primeiro pegamos o ID do grupo lá no topo da release_list
+        meu_group_id = groups_data[:release_list][0][:groups][0][:group_id]
+        # 2. Agora procuramos o grupo que bate com esse ID dentro da group_list
+        grupo_vencedor = groups_data[:group_list].find { |g| g[:group_id] == meu_group_id }
+        # 3. Agora o senhor tem o pote de ouro!
+        pagina_grupo = grupo_vencedor[:social][:website][0] if grupo_vencedor
+      else
+        # devolver que não foi encontrado grupo, pro bin/mangofier_cron avisar que não tem o grupo
+        pagina_grupo = nil
+      end
+    else
+      pagina_grupo = nil
+    end
+  end
+
 end

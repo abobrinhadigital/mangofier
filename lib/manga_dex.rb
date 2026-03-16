@@ -37,8 +37,8 @@ class MangaDex
       req.params['limit'] = 5
     end
 
-    if response.status == 200
-      return response.body[:data][0][:id] if !response.nil? && !response.body[:data][0][:id].nil?
+    if response.status == 200 && response.body[:data] && !response.body[:data].empty?
+      return response.body[:data][0][:id]
     else
       return nil
     end

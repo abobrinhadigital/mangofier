@@ -62,6 +62,7 @@ begin
     pessegram.gritar(mensagem)
     
     MangaModel.update_last_chapter(mu_id, ultimo_capitulo)
+    MangaModel.update_last_release(mu_id, fofoca[:timestamp])
     puts "✅ Processado: #{titulo} (Cap #{ultimo_capitulo})"
     sleep(2)
   end

@@ -279,13 +279,19 @@ class MangaUpdates
       groups_data = response.body
       
       # Focar no group_list se existir
-      if groups_data[:release_list]
+      if groups_data[:release_list] && !groups_data[:release_list].empty?
         # 1. Primeiro pegamos o ID do grupo lá no topo da release_list
-        meu_group_id = groups_data[:release_list][0][:groups][0][:group_id]
-        # 2. Agora procuramos o grupo que bate com esse ID dentro da group_list
-        grupo_vencedor = groups_data[:group_list].find { |g| g[:group_id] == meu_group_id }
-        # 3. Agora o senhor tem o pote de ouro!
-        pagina_grupo = grupo_vencedor[:social][:website][0] if grupo_vencedor
+        primeiro_release = groups_data[:release_list][0]
+        meu_group_id = primeiro_release.dig(:groups, 0, :group_id)
+        
+        if meu_group_id
+          # 2. Agora procuramos o grupo que bate com esse ID dentro da group_list
+          grupo_vencedor = groups_data[:group_list]&.find { |g| g[:group_id] == meu_group_id }
+          # 3. Agora o senhor tem o pote de ouro!
+          pagina_grupo = grupo_vencedor.dig(:social, :website, 0) if grupo_vencedor
+        else
+          pagina_grupo = nil
+        end
       else
         # devolver que não foi encontrado grupo, pro bin/mangofier_cron avisar que não tem o grupo
         pagina_grupo = nil

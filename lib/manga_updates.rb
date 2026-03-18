@@ -23,12 +23,10 @@ class MangaUpdates
       req.body = { username: @username, password: @password }
     end
 
-    if response.status == 200 && response.body[:context]
-      @token = response.body[:context][:session_token]
-      puts "✅ Login efetuado."
-    else
-      raise "🚨 Falha no login! Status: #{response.status}."
-    end
+    raise "🚨 Falha no login! Status: #{response.status}." unless response.success? && response.body[:context]
+
+    @token = response.body[:context][:session_token]
+    puts "✅ Login efetuado."
   end
 
   def fetch_reading_list
@@ -40,19 +38,12 @@ class MangaUpdates
       req.body = {} 
     end
 
-    if response.status == 200 && response.body[:results]
-      obras = response.body[:results]
-      mapa = {}
+    raise "🚨 O MangaUpdates trancou a gaveta! Status: #{response.status}" unless response.success? && response.body[:results]
 
-      obras.each do |item|
-        id = item.dig(:record, :series, :id)
-        titulo = item.dig(:record, :series, :title)
-        mapa[titulo] = id if titulo && id
-      end
-
-      return mapa
-    else
-      raise "🚨 O MangaUpdates trancou a gaveta! Status: #{response.status}"
+    response.body[:results].each_with_object({}) do |item, mapa|
+      id = item.dig(:record, :series, :id)
+      titulo = item.dig(:record, :series, :title)
+      mapa[titulo] = id if titulo && id
     end
   end
 
@@ -65,17 +56,15 @@ class MangaUpdates
       req.body = {} # Sem paginação = Lista completa (Truque do Mestre)
     end
 
-    if response.status == 200 && response.body[:results]
-      return response.body[:results].map do |item|
-        {
-          mu_id: item.dig(:record, :series, :id),
-          titulo: item.dig(:record, :series, :title),
-          last_updated: item.dig(:metadata, :series, :last_updated, :timestamp)
-        }
-      end
+    return [] unless response.success? && response.body[:results]
+
+    response.body[:results].map do |item|
+      {
+        mu_id: item.dig(:record, :series, :id),
+        titulo: item.dig(:record, :series, :title),
+        last_updated: item.dig(:metadata, :series, :last_updated, :timestamp)
+      }
     end
-    
-    []
   end
 
 # A NOVA BUSCA POR TEMPO (Corrigida e com Visão de Raio-X)
@@ -200,11 +189,7 @@ class MangaUpdates
       req.headers['Authorization'] = "Bearer #{@token}"
     end
 
-    if response.status == 200
-      return response.body
-    end
-    
-    nil
+    response.success? ? response.body : nil
   end
 
   # Adiciona uma série a uma lista específica (ex: 106 para Abandoned)
@@ -222,7 +207,7 @@ class MangaUpdates
       req.body = [{ series: { id: mu_id }, list_id: list_id }]
     end
 
-    response.status == 200
+    response.success?
   end
 
   # Remove uma série de uma lista específica (ex: 0 para Reading)
@@ -235,7 +220,7 @@ class MangaUpdates
       req.body = [mu_id] # Array simples de IDs
     end
 
-    response.status == 200
+    response.success?
   end
 
   # Move várias séries de uma vez para uma nova lista (O Atropelamento Atômico 🏛️)
@@ -245,10 +230,7 @@ class MangaUpdates
     # Monta o payload conforme a documentação enviada pelo Mestre
     payload = collection.map do |m|
       mu_id = m[:mu_id] || m['mu_id']
-      {
-        series: { id: mu_id },
-        list_id: list_id
-      }
+      { series: { id: mu_id }, list_id: list_id }
     end
 
     puts "📡 Enviando lote de #{payload.length} obras para a Lista #{list_id}..."
@@ -258,12 +240,12 @@ class MangaUpdates
       req.body = payload
     end
 
-    if response.status == 200
+    if response.success?
       puts "✅ Lote processado com sucesso pelo MangaUpdates."
-      return true
+      true
     else
       puts "🚨 Falha no Bulk Update. Status: #{response.status}"
-      return false
+      false
     end
   end
 
@@ -271,34 +253,19 @@ class MangaUpdates
   def fetch_group_site(mu_id)
     login if @token.nil?
     
-    # aqui embaixo tem de ir a lógica parecida com o probe_mu_groups.rb
     response = @conn.get("series/#{mu_id}/groups") do |req|
       req.headers['Authorization'] = "Bearer #{@token}"
     end
-    if response.status == 200
-      groups_data = response.body
-      
-      # Focar no group_list se existir
-      if groups_data[:release_list] && !groups_data[:release_list].empty?
-        # 1. Primeiro pegamos o ID do grupo lá no topo da release_list
-        primeiro_release = groups_data[:release_list][0]
-        meu_group_id = primeiro_release.dig(:groups, 0, :group_id)
-        
-        if meu_group_id
-          # 2. Agora procuramos o grupo que bate com esse ID dentro da group_list
-          grupo_vencedor = groups_data[:group_list]&.find { |g| g[:group_id] == meu_group_id }
-          # 3. Agora o senhor tem o pote de ouro!
-          pagina_grupo = grupo_vencedor.dig(:social, :website, 0) if grupo_vencedor
-        else
-          pagina_grupo = nil
-        end
-      else
-        # devolver que não foi encontrado grupo, pro bin/mangofier_cron avisar que não tem o grupo
-        pagina_grupo = nil
-      end
-    else
-      pagina_grupo = nil
-    end
+    
+    return nil unless response.status == 200
+    
+    groups_data = response.body
+    meu_group_id = groups_data.dig(:release_list, 0, :groups, 0, :group_id)
+    
+    return nil unless meu_group_id
+    
+    grupo_vencedor = groups_data[:group_list]&.find { |g| g[:group_id] == meu_group_id }
+    grupo_vencedor&.dig(:social, :website, 0)
   end
 
 end

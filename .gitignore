@@ -43,3 +43,10 @@ Thumbs.db
 .idea/
 *.swp
 *~
+
+# ----------------------------------------------------------------------
+# INSTRUÇÕES DA IA (Não sobem pro repositório)
+# ----------------------------------------------------------------------
+AGENTS.md
+.cursorrules
+.copilot-instructions.md

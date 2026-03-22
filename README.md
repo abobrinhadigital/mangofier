@@ -49,6 +49,17 @@ Sempre que puxar mudanças ou quiser garantir que está tudo ok:
 - `db/`: Onde mora o `mangofier.db` (auto-gerenciado).
 - `config/`: Configurações de ambiente resilientes.
 
+## Integração com Pessegram v4.0.0
+
+O Mangofier agora faz parte da arquitetura multi-bot do Pessegram v4.0.0:
+
+- **Bot Mangofier**: Bot especializado que recebe URLs do MangaUpdates via webhook
+- **API de Processamento**: Ouvinte WEBrick (porta 7356) para receber links do Pessegram
+- **Fluxo Automático**: URLs com "MU:" são automaticamente encaminhadas para mapeamento
+- **Notificação Direta**: Resultados são enviados de volta ao Telegram via PessegramService
+
+O bot opera de forma independente, mas integrada ao ecossistema Pessegram.
+
 ---
 Desenvolvido no caos para o ecossistema [Abobrinha Digital](https://abobrinhadigital.github.io/).
 *Assinado, Pollux (O Biógrafo do Azar)*

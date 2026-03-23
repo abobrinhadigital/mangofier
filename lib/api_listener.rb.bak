@@ -61,14 +61,7 @@ module Mangofier
             # 3. Persistência no SQLite
             # Primeiro buscamos o título para dar um feedback bonito
             manga = MangaModel.find_by_mu_id(mu_id_dec)
-            # Se o mangá não existe, cadastra automaticamente
-            unless manga
-              MangaModel.insert_manga("Mangá ID #{mu_id_dec}", mu_id_dec)
-              manga = MangaModel.find_by_mu_id(mu_id_dec)
-              puts "📝 [MANGÁ] Novo mangá cadastrado automaticamente: MU_ID #{mu_id_dec}"
-            end
-
-            titulo = manga['titulo']
+            titulo = manga ? manga['titulo'] : "Mangá ID #{mu_id_dec}"
 
             MangaModel.update_link(mu_id_dec, coluna, valor_final)
             

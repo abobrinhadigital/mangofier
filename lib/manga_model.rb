@@ -115,4 +115,37 @@ class MangaModel
   def self.get_wishlist_for_hunter
     DB.execute('SELECT * FROM wishlist_mangas ORDER BY added_at DESC')
   end
+
+  # === MÉTODOS DE HYPE TRACKING (Hype Hunter) ===
+
+  def self.ensure_hype_tracking_schema
+    columns = DB.execute('PRAGMA table_info(mangas_mapeados)').map { |c| c['name'] }
+
+    unless columns.include?('last_hyped_at')
+      DB.execute('ALTER TABLE mangas_mapeados ADD COLUMN last_hyped_at INTEGER')
+      puts "➕ [MangaModel] Adicionando coluna 'last_hyped_at'..."
+    end
+
+    return if columns.include?('hype_count')
+
+    DB.execute('ALTER TABLE mangas_mapeados ADD COLUMN hype_count INTEGER DEFAULT 0')
+    puts "➕ [MangaModel] Adicionando coluna 'hype_count'..."
+  end
+
+  def self.mark_as_hyped(mu_id)
+    DB.execute(<<~SQL, [Time.now.to_i, mu_id])
+      UPDATE mangas_mapeados#{' '}
+      SET last_hyped_at = ?, hype_count = COALESCE(hype_count, 0) + 1
+      WHERE mu_id = ?
+    SQL
+  end
+
+  def self.reset_hype_if_stale(mu_id, last_hyped_at, days_threshold = 90)
+    return if last_hyped_at.nil?
+
+    days_inactive = (Time.now.to_i - last_hyped_at) / 86_400
+    return unless days_inactive > days_threshold
+
+    DB.execute('UPDATE mangas_mapeados SET hype_count = 0 WHERE mu_id = ?', [mu_id])
+  end
 end

@@ -1,0 +1,49 @@
+#!/usr/bin/env ruby
+# bin/mangofier_wishlist_sync
+# Sincroniza a Wishlist do MangaUpdates (lista ID 1) com o banco local
+# Para que o Hype Hunter possa consultar quais mangás o usuário quer ler
+
+require_relative '../config/environment'
+
+puts "📋 Sincronizando Wishlist do MangaUpdates..."
+
+begin
+  # Garante que a tabela de wishlist existe
+  MangaModel.ensure_wishlist_schema
+
+  mu = MangaUpdates.new
+
+  # 1. Buscar wishlist do MangaUpdates (lista 1 = Wish List)
+  wishlist_items = mu.fetch_list(1)
+
+  if wishlist_items.empty?
+    puts "⚠️ Nenhum item encontrado na Wishlist do MangaUpdates"
+    exit 0
+  end
+
+  # 2. Sincronizar com banco local
+  wishlist_items.each do |item|
+    mu_id = item[:mu_id]
+    titulo = item[:titulo]
+    added_at = item[:added_at]
+
+    MangaModel.insert_wishlist(mu_id, titulo, added_at)
+  end
+
+  # 3. Remover itens que saíram da wishlist
+  local_ids = MangaModel.get_wishlist_ids
+  remote_ids = wishlist_items.map { |i| i[:mu_id] }
+  removed = local_ids - remote_ids
+
+  removed.each { |id| MangaModel.remove_from_wishlist(id) }
+
+  puts "✅ Wishlist sincronizada!"
+  puts "   📊 Total na API: #{wishlist_items.count} itens"
+  puts "   ➕ Adicionados/Atualizados: #{wishlist_items.count}"
+  puts "   ➖ Removidos: #{removed.count}"
+
+rescue => e
+  puts "🚨 Falha na sincronização da Wishlist: #{e.class} - #{e.message}"
+  puts e.backtrace.first(5).join("\n") if ENV['DEBUG']
+  exit 1
+end

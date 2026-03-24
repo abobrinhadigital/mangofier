@@ -2,6 +2,12 @@
 
 Todas as mudanças notáveis no projeto **Mangofier** serão documentadas neste arquivo.
 
+## [1.3.0] - 2026-03-23
+
+### Adicionado
+- **Wishlist Sync (`bin/mangofier_wishlist_sync`)**: Sincronização da Wish List (lista 1) do MangaUpdates com o banco local. Atualiza metadados de todas as obras da lista em uma única execução.
+- **Comando `wishlist` no Analyzer**: `bin/mangofier_analyzer wishlist` para listar obras da Wish List com status de sincronização.
+
 ## [1.2.0] - 2026-03-22
 
 ### Adicionado

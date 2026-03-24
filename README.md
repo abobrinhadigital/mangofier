@@ -21,6 +21,8 @@ O **Mangofier** é o sentinela bilingue do ecossistema Abobrinha Digital. Sua ú
 ### 4. Painel de Controle (CLI)
 - **`bin/mangofier_status`**: Tabela elegante para visualizar a biblioteca, data de lançamentos e inatividade das obras.
 - **`bin/mangofier_analyzer`**: O "Inspetor de Defuntos". Identifica obras abandonadas e limpa o banco automaticamente.
+- **`bin/mangofier_wishlist_sync`**: Sincroniza a Wish List do MangaUpdates com o banco local.
+- **`bin/mangofier_analyzer wishlist`**: Mostra obras da Wish List com status de sincronização.
 
 ## Instalação e Uso
 

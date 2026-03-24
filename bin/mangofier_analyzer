@@ -133,6 +133,36 @@ def run_list(mangas)
   puts "-" * 150
 end
 
+def run_wishlist
+  puts "📋 --- WISHLIST DO MANGAUPDATES (lista 1) ---"
+  
+  wishlist = MangaModel.get_wishlist_for_hunter
+  
+  if wishlist.empty?
+    puts "🕳️  Wishlist vazia. Execute 'ruby bin/mangofier_wishlist_sync' primeiro."
+    return
+  end
+
+  puts "-" * 100
+  puts "%-10s | %-50s | %-12s | %-15s" % ["MU ID", "Título", "Adicionado", "Status"]
+  puts "-" * 100
+
+  wishlist.each do |item|
+    added = item['added_at'] ? Time.at(item['added_at']).strftime("%d/%m/%Y") : "N/A"
+    status = item['status'] || "Wishlist"
+    
+    puts "%-10s | %-50s | %-12s | %-15s" % [
+      item['mu_id'],
+      item['titulo'].to_s[0..49],
+      added,
+      status
+    ]
+  end
+  
+  puts "-" * 100
+  puts "📊 Total: #{wishlist.length} mangás na Wishlist"
+end
+
 # --- FLUXO PRINCIPAL ---
 
 begin
@@ -141,10 +171,11 @@ begin
     puts "🥭 --- MANGODIER ANALYZER : MENU DE COMANDOS ---"
     puts "Uso: ruby bin/mangofier_analyzer [COMANDO]"
     puts "\nComandos disponíveis:"
-    puts "  start   - 📡 Varre a API do MangaUpdates para atualizar datas de lançamento (Lento/Online)"
-    puts "  abandon - 🪓 Move obras inativas (+2 anos) para a lista 106 e remove localmente"
-    puts "  list    - 📊 Exibe o relatório de status e links baseado nos dados do banco (Rápido/Offline)"
-    puts "\nExemplo: ruby bin/mangofier_analyzer list"
+    puts "  start    - 📡 Varre a API do MangaUpdates para atualizar datas de lançamento (Lento/Online)"
+    puts "  abandon  - 🪓 Move obras inativas (+2 anos) para a lista 106 e remove localmente"
+    puts "  list     - 📊 Exibe o relatório de status e links baseado nos dados do banco (Rápido/Offline)"
+    puts "  wishlist - 📋 Lista os mangás da Wishlist sincronizada do MangaUpdates"
+    puts "\nExemplo: ruby bin/mangofier_analyzer wishlist"
     puts "-" * 50
     exit
   end
@@ -167,6 +198,8 @@ begin
     run_abandon(mu, mangas)
   elsif ARGV.include?("list")
     run_list(mangas)
+  elsif ARGV.include?("wishlist")
+    run_wishlist
   else
     puts "🚨 Parâmetro desconhecido. Use 'ruby bin/mangofier_analyzer' para ver a ajuda."
   end

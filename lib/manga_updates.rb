@@ -106,18 +106,18 @@ class MangaUpdates
         obras.each do |item|
           fofoca_ts = item.dig(:record, :time_added, :timestamp).to_i
 
-          if fofoca_ts <= last_check_timestamp
+          if fofoca_ts < last_check_timestamp
             barreira_do_tempo_atingida = true
             break
           end
-
-          maior_timestamp = fofoca_ts if fofoca_ts > maior_timestamp
 
           mu_id = item.dig(:metadata, :series, :series_id)
           titulo = item.dig(:metadata, :series, :title)
           capitulo = item.dig(:record, :chapter)
 
           next unless mu_id && capitulo
+
+          maior_timestamp = fofoca_ts if fofoca_ts > maior_timestamp
 
           lancamentos_validos << {
             mu_id: mu_id,

@@ -8,16 +8,31 @@ puts "🔄 Iniciando Sincronização Diária da Reading List..."
 begin
   mu = MangaUpdates.new
   
-  # 1. Busca a lista completa da API
-  mapa_da_api = mu.fetch_reading_list
-  ids_na_api = mapa_da_api.values
+  # 1. Busca a lista completa com metadata (inclui latest_chapter)
+  lista_api = mu.fetch_reading_list_with_metadata
+  ids_na_api = lista_api.map { |item| item[:mu_id] }
 
   # 2. Pega o que temos no banco atualmente
   ids_no_banco = MangaModel.get_all_mu_ids
 
-  # 3. Inserir os novos (O 'INSERT OR IGNORE' ignora os que já existem)
-  mapa_da_api.each do |titulo, id|
-    MangaModel.insert_manga(titulo, id)
+  # 3. Inserir os novos e atualizar latest_chapter
+  lista_api.each do |item|
+    mu_id = item[:mu_id]
+    titulo = item[:titulo]
+    latest_chapter = item[:latest_chapter]
+    
+    MangaModel.insert_manga(titulo, mu_id)
+    
+    # Atualiza o último capítulo se disponível
+    if latest_chapter
+      db_manga = MangaModel.find_by_mu_id(mu_id)
+      cap_atual = db_manga['ultimo_capitulo_notificado']
+      
+      if cap_atual != latest_chapter.to_s
+        puts "📝 #{titulo}: cap #{cap_atual || 'N/A'} → #{latest_chapter}"
+        MangaModel.update_last_chapter(mu_id, latest_chapter)
+      end
+    end
   end
 
   # 4. A mágica da limpeza: O que tem no banco MAS NÃO TEM na API?

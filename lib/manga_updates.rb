@@ -49,7 +49,7 @@ class MangaUpdates
     end
   end
 
-  # Versão turbinada que traz os metadados (last_updated) de toda a lista de uma vez de forma atômica
+  # Versão turbinada que traz os metadados (last_updated, latest_chapter) de toda a lista de uma vez
   def fetch_reading_list_with_metadata
     login if @token.nil?
 
@@ -61,10 +61,14 @@ class MangaUpdates
     return [] unless response.success? && response.body[:results]
 
     response.body[:results].map do |item|
+      latest = item.dig(:metadata, :series, :latest_chapter)
+      latest ||= item.dig(:metadata, :series, :last_chapter_posted)
+
       {
         mu_id: item.dig(:record, :series, :id),
         titulo: item.dig(:record, :series, :title),
-        last_updated: item.dig(:metadata, :series, :last_updated, :timestamp)
+        last_updated: item.dig(:metadata, :series, :last_updated, :timestamp),
+        latest_chapter: latest
       }
     end
   end

@@ -1,5 +1,10 @@
 # Mangofier
 
+> **Status: LEGADO — DESCONTINUADO**
+
+> [!WARNING]
+> Este repositório é a versão standalone original do Mangofier. O projeto foi migrado para o monorepo **Pollux** (código privado), onde continua em desenvolvimento ativo como módulo integrado.
+
 O **Mangofier** é o sentinela bilingue do ecossistema Abobrinha Digital. Sua única missão é garantir que o Mestre Marcelo nunca perca um capítulo de seus mangás e, mais importante, nunca precise gastar mais do que dois cliques para organizar sua biblioteca. Ele é o braço direito do Pessegram na guerra contra a desorganização e o azar de Murphy.
 
 ## Funcionalidades v1.1 (Era da Automação)
